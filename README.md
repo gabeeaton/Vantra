@@ -62,7 +62,7 @@ Open source: [github.com/gabeeaton/vantra-sdk](https://github.com/gabeeaton/vant
 |---|---|---|---|---|
 | Free | $0 | 50K/mo | 30 days | — |
 | Pro | $29/mo | 1M/mo | 90 days | Email |
-| Team | $99/mo | 10M/mo | 1 year | Email + Slack |
+| Team | $299/mo | 10M/mo | 1 year | Email + Slack |
 | Enterprise | Custom | Unlimited | Custom | Custom |
 
 ---
