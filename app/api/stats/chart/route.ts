@@ -19,18 +19,20 @@ export async function GET() {
     .gte('created_at', since7d)
     .order('created_at', { ascending: true })
 
-  // Bucket into days
-  const days: Record<string, { date: string; traces: number; tokens: number; cost: number; errors: number }> = {}
+  // Bucket into days using UTC so server and DB timestamps always agree
+  const toKey = (iso: string) => iso.slice(0, 10)
+  const todayUTC = new Date().toISOString().slice(0, 10)
 
+  const days: Record<string, { date: string; traces: number; tokens: number; cost: number; errors: number }> = {}
   for (let i = 6; i >= 0; i--) {
     const d = new Date()
-    d.setDate(d.getDate() - i)
+    d.setUTCDate(d.getUTCDate() - i)
     const key = d.toISOString().slice(0, 10)
     days[key] = { date: key, traces: 0, tokens: 0, cost: 0, errors: 0 }
   }
 
   for (const t of traces ?? []) {
-    const key = t.created_at.slice(0, 10)
+    const key = toKey(t.created_at)
     if (!days[key]) continue
     days[key].traces++
     days[key].tokens += t.total_tokens || 0
@@ -38,5 +40,5 @@ export async function GET() {
     if (t.status === 'error') days[key].errors++
   }
 
-  return NextResponse.json({ days: Object.values(days) })
+  return NextResponse.json({ days: Object.values(days), todayUTC })
 }
