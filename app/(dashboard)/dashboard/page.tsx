@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -35,14 +36,25 @@ export default function DashboardPage() {
   const [traces, setTraces] = useState<Trace[]>([])
   const [chart, setChart] = useState<DayBucket[]>([])
   const [loading, setLoading] = useState(true)
+  const searchParams = useSearchParams()
+  const isDemo = searchParams.get('demo') === 'true'
 
   useEffect(() => {
+    if (isDemo) {
+      fetch('/api/demo').then((r) => r.json()).then((d) => {
+        setStats(d.stats)
+        setChart(d.chart.days ?? [])
+        setTraces(d.traces ?? [])
+        setLoading(false)
+      })
+      return
+    }
     fetch('/api/stats/overview').then((r) => r.json()).then(setStats)
     fetch('/api/stats/chart').then((r) => r.json()).then((d) => setChart(d.days ?? []))
     fetch('/api/traces?limit=8')
       .then((r) => r.json())
       .then((d) => { setTraces(d.traces ?? []); setLoading(false) })
-  }, [])
+  }, [isDemo])
 
   const errorRate = stats && stats.tracesToday > 0
     ? ((stats.errorsLast24h / stats.tracesToday) * 100).toFixed(1)
@@ -53,8 +65,16 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8 animate-fade-up">
 
+      {/* Demo mode banner */}
+      {isDemo && (
+        <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium px-4 py-2.5 rounded-lg">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+          Demo mode — sample data for illustration purposes
+        </div>
+      )}
+
       {/* Getting started banner — hidden once they have traces */}
-      {!loading && !hasData && <GettingStarted />}
+      {!loading && !hasData && !isDemo && <GettingStarted />}
 
       {/* Page header */}
       <div className="flex items-center justify-between">
