@@ -23,6 +23,20 @@ export const metadata: Metadata = {
     ],
     apple: '/favicon.png',
   },
+  openGraph: {
+    title: 'Vantra — Observability for AI Agents',
+    description: 'See exactly what your AI agents are doing in production. Traces, costs, errors, and anomaly alerts in 3 lines of code.',
+    url: 'https://vantra.dev',
+    siteName: 'Vantra',
+    images: [{ url: 'https://vantra.dev/og.png', width: 1920, height: 1080 }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Vantra — Observability for AI Agents',
+    description: 'See exactly what your AI agents are doing in production. Traces, costs, errors, and anomaly alerts in 3 lines of code.',
+    images: ['https://vantra.dev/og.png'],
+  },
 };
 
 export default function RootLayout({
