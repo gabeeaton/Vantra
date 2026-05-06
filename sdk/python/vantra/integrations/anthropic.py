@@ -18,7 +18,7 @@ def _patch_messages_class(Messages):
         return
 
     def patched(self, *args, **kwargs):
-        from vantra import _queue, _queue_lock, _truncate, _config, _current_trace_id
+        from vantra import _truncate, _config, _current_trace_id, _queue_span
 
         start = time.time()
         status = "ok"
@@ -48,27 +48,25 @@ def _patch_messages_class(Messages):
                 block = response.content[0]
                 output_text = {"text": getattr(block, "text", "")[:1000]}
 
-            with _queue_lock:
-                _queue.append({
-                    "_type": "span",
-                    "span_id": str(uuid.uuid4()),
-                    "trace_id": _current_trace_id.get(),
-                    "name": f"anthropic.messages ({model})",
-                    "kind": "llm",
-                    "provider": "anthropic",
-                    "model": model,
-                    "project": _config["project"],
-                    "start_time": start,
-                    "end_time": end,
-                    "duration_ms": int((end - start) * 1000),
-                    "status": status,
-                    "error_message": error_msg,
-                    "input_tokens": input_tokens,
-                    "output_tokens": output_tokens,
-                    "cost_usd": cost,
-                    "input": _truncate({"messages": kwargs.get("messages", [])[-1:]}),
-                    "output": output_text,
-                })
+            _queue_span({
+                "span_id": str(uuid.uuid4()),
+                "trace_id": _current_trace_id.get(),
+                "name": f"anthropic.messages ({model})",
+                "kind": "llm",
+                "provider": "anthropic",
+                "model": model,
+                "project": _config["project"],
+                "start_time": start,
+                "end_time": end,
+                "duration_ms": int((end - start) * 1000),
+                "status": status,
+                "error_message": error_msg,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cost_usd": cost,
+                "input": _truncate({"messages": kwargs.get("messages", [])[-1:]}),
+                "output": output_text,
+            })
 
     patched.__vantra__ = True
     Messages.create = patched
