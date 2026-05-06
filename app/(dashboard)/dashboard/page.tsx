@@ -65,15 +65,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8 animate-fade-up">
 
-      {/* Demo mode banner */}
-      {isDemo && (
-        <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium px-4 py-2.5 rounded-lg">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-          Demo mode — sample data for illustration purposes
-        </div>
-      )}
-
-      {/* Getting started banner — hidden once they have traces */}
+{/* Getting started banner — hidden once they have traces */}
       {!loading && !hasData && !isDemo && <GettingStarted />}
 
       {/* Page header */}
