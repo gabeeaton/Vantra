@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Vantra — Observability for AI Agents",
   description: "See exactly what your AI agents are doing in production. Traces, costs, errors, and anomaly alerts in 3 lines of code.",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
