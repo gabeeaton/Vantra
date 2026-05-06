@@ -4,17 +4,21 @@ from vantra._costs import calculate_cost
 
 def patch():
     try:
-        import anthropic
-        _patch_client(anthropic)
+        from anthropic.resources.messages.messages import Messages
+        _patch_messages_class(Messages)
     except ImportError:
+        pass
+    except Exception:
         pass
 
 
-def _patch_client(anthropic_module):
-    original = anthropic_module.Anthropic.messages.create
+def _patch_messages_class(Messages):
+    original = Messages.create
+    if getattr(original, "__vantra__", False):
+        return
 
     def patched(self, *args, **kwargs):
-        from vantra import _queue, _queue_lock, _truncate, _config
+        from vantra import _queue, _queue_lock, _truncate, _config, _current_trace_id
 
         start = time.time()
         status = "ok"
@@ -44,7 +48,6 @@ def _patch_client(anthropic_module):
                 block = response.content[0]
                 output_text = {"text": getattr(block, "text", "")[:1000]}
 
-            from vantra import _current_trace_id
             with _queue_lock:
                 _queue.append({
                     "_type": "span",
@@ -67,4 +70,5 @@ def _patch_client(anthropic_module):
                     "output": output_text,
                 })
 
-    anthropic_module.Anthropic.messages.create = patched
+    patched.__vantra__ = True
+    Messages.create = patched
