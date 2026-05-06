@@ -53,7 +53,7 @@ export function DocsQuickstart() {
       <Step num={1} title="Install the SDK">
         {lang === 'python'
           ? <CodeBlock lang="bash">pip install vantra</CodeBlock>
-          : <CodeBlock lang="bash">npm install @gabeeaton/vantra</CodeBlock>
+          : <CodeBlock lang="bash">npm install vantra-sdk</CodeBlock>
         }
       </Step>
 
@@ -73,7 +73,7 @@ vantra.init(api_key="van_live_...", project="my-agent")
 def run_agent(message: str):
     return agent.run(message)  # your existing code`}</CodeBlock>
         ) : (
-          <CodeBlock lang="typescript">{`import { init, trace } from '@gabeeaton/vantra'
+          <CodeBlock lang="typescript">{`import { init, trace } from 'vantra-sdk'
 
 init({ apiKey: 'van_live_...', project: 'my-agent' })
 

@@ -118,7 +118,7 @@ export default function LandingPage() {
 
           <div className="space-y-6">
             {[
-              { num: '01', title: 'Install the SDK', body: 'pip install vantra or npm install @gabeeaton/vantra — works with OpenAI, Anthropic, LangChain, or raw API calls.' },
+              { num: '01', title: 'Install the SDK', body: 'pip install vantra or npm install vantra-sdk — works with OpenAI, Anthropic, LangChain, or raw API calls.' },
               { num: '02', title: 'Add 3 lines', body: 'init() + one decorator. No changes to your agent logic. Auto-patches LLM clients.' },
               { num: '03', title: 'See everything', body: 'Every LLM call, tool use, latency, token count, and cost — live in your dashboard.' },
             ].map((step) => (

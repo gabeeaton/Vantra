@@ -66,7 +66,7 @@ export default function DocsPage() {
 pip install vantra
 
 # Node.js / TypeScript
-npm install @gabeeaton/vantra`}</CodeBlockServer>
+npm install vantra-sdk`}</CodeBlockServer>
           </section>
 
           {/* init */}

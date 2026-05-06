@@ -1,5 +1,5 @@
 {
-  "name": "@gabeeaton/vantra",
+  "name": "vantra-sdk",
   "version": "0.1.0",
   "description": "AI agent observability — traces, costs, and anomaly alerts in 3 lines of code",
   "main": "dist/index.js",
