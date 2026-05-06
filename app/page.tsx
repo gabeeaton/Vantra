@@ -317,10 +317,7 @@ export default function LandingPage() {
           <Logo />
           <div className="flex items-center justify-between flex-wrap gap-3">
             <p className="text-zinc-600 text-sm">© 2026 Vantra. Built by Gabe Eaton.</p>
-            <a href="https://vantradev.betteruptime.com/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-400 transition-colors">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-              All systems operational
-            </a>
+            <iframe src="https://vantradev.betteruptime.com/badge?theme=dark" width="250" height="30" frameBorder={0} scrolling="no" style={{ colorScheme: 'normal' }} />
           </div>
         </div>
       </footer>
