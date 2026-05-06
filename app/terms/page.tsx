@@ -1,6 +1,6 @@
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white font-[family-name:var(--font-inter)]">
       <div className="max-w-2xl mx-auto px-6 py-16">
         <a href="/" className="text-[#4DE5FC] text-sm hover:underline">← Vantra</a>
         <h1 className="text-3xl font-bold mt-8 mb-2">Terms of Service</h1>
