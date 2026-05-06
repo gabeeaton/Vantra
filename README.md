@@ -10,7 +10,7 @@ Vantra fixes that. Add 3 lines of code to any Python agent and instantly get:
 
 - **Waterfall traces** — every step of every agent run, nested and timed
 - **Cost tracking** — per call, per model, per day
-- **Anomaly alerts** — email when error rate spikes, latency blows up, or cost goes off the rails
+- **Anomaly alerts** — email + Slack when error rate spikes, latency blows up, or cost goes off the rails
 - **Works with anything** — OpenAI, Anthropic, LangChain, custom agents
 
 ## Stack
@@ -23,7 +23,7 @@ Vantra fixes that. Add 3 lines of code to any Python agent and instantly get:
 | Payments | Stripe |
 | Email | Resend |
 | Hosting | Vercel |
-| SDK | Python (PyPI), TypeScript (npm) |
+| SDK | Python (PyPI) |
 
 ## Getting started
 
@@ -38,17 +38,19 @@ npm install
 ### 2. Set up Supabase
 
 1. Create a project at [supabase.com](https://supabase.com)
-2. Run the migration in **SQL Editor**:
+2. Run the migrations in order in **SQL Editor**:
 
 ```bash
-# Copy and run the contents of:
 supabase/migrations/001_initial.sql
+supabase/migrations/002_alert_fired.sql
+supabase/migrations/003_invites.sql
 ```
 
 3. Enable GitHub OAuth: **Authentication → Providers → GitHub**
    - Create a GitHub OAuth app at github.com/settings/developers
    - Callback URL: `https://<your-project>.supabase.co/auth/v1/callback`
    - Paste Client ID + Secret into Supabase
+4. Add `https://vantra.dev/auth/callback` to **Authentication → URL Configuration → Redirect URLs**
 
 ### 3. Configure environment variables
 
@@ -72,7 +74,9 @@ STRIPE_PRICE_TEAM=price_xxx
 
 RESEND_API_KEY=re_...
 
-NEXT_PUBLIC_APP_URL=https://vantra.io
+NEXT_PUBLIC_APP_URL=https://vantra.dev
+
+CRON_SECRET=your_random_secret_here
 ```
 
 ### 4. Run locally
@@ -143,20 +147,29 @@ vantra/
 │   ├── (dashboard)/
 │   │   ├── dashboard/         # Overview, traces, alerts, settings
 │   │   └── onboarding/        # Org + project setup
+│   ├── docs/                  # Public docs page
+│   ├── invite/[token]/        # Team invite accept page
 │   └── api/
 │       ├── v1/ingest/         # SDK ingest endpoints
 │       ├── traces/            # Dashboard trace API
 │       ├── stats/             # Overview stats
 │       ├── alerts/            # Alert rules CRUD
-│       └── settings/          # API key management
+│       ├── alerts/[id]/test/  # Dev-only test alert
+│       ├── cron/check-alerts/ # Vercel Cron alert checker
+│       ├── invite/[token]/    # Public invite validation
+│       ├── webhooks/stripe/   # Stripe billing webhooks
+│       └── settings/          # API keys + team management
 ├── components/
-│   └── trace-waterfall.tsx    # The main visualization
+│   ├── trace-waterfall.tsx    # The main visualization
+│   ├── code-block.tsx         # Syntax-highlighted code with copy
+│   └── scroll-reveal.tsx      # Intersection Observer fade-in
 ├── lib/
 │   ├── supabase/              # Browser + server clients
 │   ├── api-keys.ts            # Key generation + hashing
-│   └── ingest-auth.ts         # SDK auth via service role
+│   ├── ingest-auth.ts         # SDK auth via service role
+│   └── shiki.ts               # Server-side syntax highlighting
 ├── sdk/
-│   └── python/vantra/         # Python SDK source
+│   └── python/vantra/         # Python SDK source (published to PyPI)
 └── supabase/
     └── migrations/            # Database schema
 ```
@@ -188,9 +201,21 @@ vercel
 
 Set all environment variables in the Vercel dashboard under **Settings → Environment Variables**.
 
+### Vercel Cron
+
+`vercel.json` configures a cron job that checks alert rules every 5 minutes. Set `CRON_SECRET` to a random string in your Vercel env vars — Vercel sends it as `Authorization: Bearer <secret>` on each cron invocation.
+
 ### Stripe webhooks
 
-Point your Stripe webhook to `https://vantra.io/api/webhooks/stripe` and enable the `customer.subscription.updated` and `customer.subscription.deleted` events.
+Point your Stripe webhook to `https://vantra.dev/api/webhooks/stripe` and enable:
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+
+### After deploying
+
+1. Update GitHub OAuth app callback URL to `https://vantra.dev/auth/callback`
+2. Add `https://vantra.dev/auth/callback` to Supabase redirect URLs
+3. Verify your domain in Resend and add DNS records for `vantra.dev`
 
 ---
 
@@ -209,11 +234,8 @@ Point your Stripe webhook to `https://vantra.io/api/webhooks/stripe` and enable 
 
 ## Roadmap
 
-- [ ] Slack alerts
 - [ ] TypeScript SDK (npm)
 - [ ] Model cost comparison view
 - [ ] Trace search and filtering
 - [ ] Weekly digest email
-- [ ] Team member invites
 - [ ] Usage-based billing
-# Vantra
