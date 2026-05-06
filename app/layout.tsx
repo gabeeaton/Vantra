@@ -17,7 +17,11 @@ export const metadata: Metadata = {
   title: "Vantra — Observability for AI Agents",
   description: "See exactly what your AI agents are doing in production. Traces, costs, errors, and anomaly alerts in 3 lines of code.",
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon.png', sizes: '256x256', type: 'image/png' },
+    ],
+    apple: '/favicon.png',
   },
 };
 
