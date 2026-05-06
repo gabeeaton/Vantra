@@ -87,6 +87,7 @@ export async function DELETE(req: NextRequest) {
   if (ctx.role !== 'owner' && ctx.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await req.json()
-  await ctx.supabase.from('invites').delete().eq('id', id).eq('org_id', ctx.orgId)
+  const { error } = await ctx.supabase.from('invites').delete().eq('id', id).eq('org_id', ctx.orgId)
+  if (error) return NextResponse.json({ error: 'Delete failed' }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

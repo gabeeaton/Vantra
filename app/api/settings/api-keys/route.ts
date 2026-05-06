@@ -46,7 +46,8 @@ export async function DELETE(req: NextRequest) {
 
   const { id } = await req.json()
   const supabase = await createClient()
-  await supabase.from('api_keys').delete().eq('id', id).eq('org_id', orgId)
+  const { error } = await supabase.from('api_keys').delete().eq('id', id).eq('org_id', orgId)
+  if (error) return NextResponse.json({ error: 'Delete failed' }, { status: 500 })
 
   return NextResponse.json({ ok: true })
 }

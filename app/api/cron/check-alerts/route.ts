@@ -94,13 +94,15 @@ export async function GET(req: NextRequest) {
       ? `${currentValue}ms p95 latency (threshold: ${rule.threshold}ms)`
       : `$${currentValue.toFixed(4)} cost/hour (threshold: $${rule.threshold})`
 
-    for (const email of (rule.email_recipients ?? [])) {
-      await resend().emails.send({
-        from: 'Vantra Alerts <alerts@vantra.dev>',
-        to: email,
-        subject: `Alert: ${rule.name} — Vantra`,
-        html: alertEmailHtml({ ruleName: rule.name, metricLabel, windowMinutes: rule.window_minutes }),
-      })
+    if (process.env.RESEND_API_KEY) {
+      for (const email of (rule.email_recipients ?? [])) {
+        await resend().emails.send({
+          from: 'Vantra Alerts <alerts@vantra.dev>',
+          to: email,
+          subject: `Alert: ${rule.name} — Vantra`,
+          html: alertEmailHtml({ ruleName: rule.name, metricLabel, windowMinutes: rule.window_minutes }),
+        }).catch(() => {})
+      }
     }
 
     // Send Slack notification
@@ -130,7 +132,7 @@ export async function GET(req: NextRequest) {
                 {
                   type: 'button',
                   text: { type: 'plain_text', text: 'View traces →' },
-                  url: 'https://vantra.dev/dashboard/traces',
+                  url: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://vantra.dev'}/dashboard/traces`,
                   style: 'primary',
                 },
               ],

@@ -65,6 +65,7 @@ export async function DELETE(req: NextRequest) {
   if (!result?.orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await req.json()
-  await result.supabase.from('alert_rules').delete().eq('id', id).eq('org_id', result.orgId)
+  const { error } = await result.supabase.from('alert_rules').delete().eq('id', id).eq('org_id', result.orgId)
+  if (error) return NextResponse.json({ error: 'Delete failed' }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

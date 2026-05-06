@@ -44,7 +44,8 @@ export function Nav() {
         {/* Desktop links */}
         <div className="hidden md:flex items-center gap-6">
           {navLink('/docs', 'Docs')}
-          <Link href="#pricing" className="text-sm text-zinc-400 hover:text-white transition-colors">Pricing</Link>
+          <Link href="/#pricing" className="text-sm text-zinc-400 hover:text-white transition-colors">Pricing</Link>
+          <a href="https://github.com/gabeeaton/vantra-sdk" target="_blank" rel="noopener noreferrer" className="text-sm text-zinc-400 hover:text-white transition-colors">GitHub</a>
           {navLink('/login', 'Sign in')}
           <button
             onClick={() => navigate('/login')}
@@ -72,9 +73,10 @@ export function Nav() {
 
       {/* Mobile menu */}
       {open && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-[#0a0a0a] border-b border-white/5 px-6 py-4 flex flex-col gap-4">
+        <div className="md:hidden absolute top-full left-0 right-0 bg-[#0a0a0a] border-b border-white/5 px-6 py-4 flex flex-col gap-4 animate-in slide-in-from-top-2 fade-in duration-200">
           {navLink('/docs', 'Docs')}
-          <Link href="#pricing" onClick={() => setOpen(false)} className="text-sm text-zinc-400 hover:text-white transition-colors py-1">Pricing</Link>
+          <Link href="/#pricing" onClick={() => setOpen(false)} className="text-sm text-zinc-400 hover:text-white transition-colors py-1">Pricing</Link>
+          <a href="https://github.com/gabeeaton/vantra-sdk" target="_blank" rel="noopener noreferrer" className="text-sm text-zinc-400 hover:text-white transition-colors py-1">GitHub</a>
           {navLink('/login', 'Sign in')}
         </div>
       )}
