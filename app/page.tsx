@@ -92,7 +92,7 @@ export default function LandingPage() {
         <ScrollReveal>
         <div className="text-center mb-16">
           <h2 className="text-4xl font-black mb-4">3 lines. Full visibility.</h2>
-          <p className="text-zinc-400 text-lg">Add Vantra to any Python agent in under a minute.</p>
+          <p className="text-zinc-400 text-lg">Add Vantra to any Python or Node.js agent in under a minute.</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 items-center">
@@ -118,7 +118,7 @@ export default function LandingPage() {
 
           <div className="space-y-6">
             {[
-              { num: '01', title: 'Install the SDK', body: 'pip install vantra — that\'s it. Works with OpenAI, Anthropic, LangChain, or raw API calls.' },
+              { num: '01', title: 'Install the SDK', body: 'pip install vantra or npm install @gabeeaton/vantra — works with OpenAI, Anthropic, LangChain, or raw API calls.' },
               { num: '02', title: 'Add 3 lines', body: 'init() + one decorator. No changes to your agent logic. Auto-patches LLM clients.' },
               { num: '03', title: 'See everything', body: 'Every LLM call, tool use, latency, token count, and cost — live in your dashboard.' },
             ].map((step) => (

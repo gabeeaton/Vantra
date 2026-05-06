@@ -58,8 +58,17 @@ export default function DocsPage() {
           <section id="quickstart" className="space-y-6">
             <h2 className="text-2xl font-bold border-b border-white/5 pb-4">Quickstart</h2>
 
+            <div className="flex gap-2 mb-2">
+              <span className="text-xs px-3 py-1 rounded-full bg-[#4DE5FC]/10 border border-[#4DE5FC]/30 text-[#4DE5FC] font-medium">Python</span>
+              <span className="text-xs px-3 py-1 rounded-full bg-zinc-900 border border-white/10 text-zinc-500 font-medium">Node.js / TypeScript</span>
+            </div>
+
             <Step num={1} title="Install the SDK">
-              <CodeBlockServer lang="bash">{`pip install vantra`}</CodeBlockServer>
+              <CodeBlockServer lang="bash">{`# Python
+pip install vantra
+
+# Node.js / TypeScript
+npm install @gabeeaton/vantra`}</CodeBlockServer>
             </Step>
 
             <Step num={2} title="Get your API key">
@@ -69,22 +78,28 @@ export default function DocsPage() {
             </Step>
 
             <Step num={3} title="Add 3 lines to your agent">
-              <CodeBlockServer lang="python">{`import vantra
+              <CodeBlockServer lang="python">{`# Python
+import vantra
 
-vantra.init(
-    api_key="van_live_...",
-    project="my-agent"
-)
+vantra.init(api_key="van_live_...", project="my-agent")
 
 @vantra.trace
 def run_agent(message: str):
-    # your existing code — completely untouched
-    return agent.run(message)`}</CodeBlockServer>
+    return agent.run(message)  # your existing code`}</CodeBlockServer>
+              <p className="text-zinc-600 text-xs mt-2 mb-2">— or in Node.js / TypeScript —</p>
+              <CodeBlockServer lang="typescript">{`// Node.js / TypeScript
+import { init, trace } from '@gabeeaton/vantra'
+
+init({ apiKey: 'van_live_...', project: 'my-agent' })
+
+const runAgent = trace(async function runAgent(message: string) {
+  return agent.run(message)  // your existing code
+})`}</CodeBlockServer>
             </Step>
 
             <Step num={4} title="Run your agent and open the dashboard">
               <p className="text-zinc-400 text-sm">
-                Every trace appears in your <Link href="/dashboard/traces" className="text-[#4DE5FC] hover:underline">Traces dashboard</Link> within seconds.
+                Every trace appears in your <Link href="/dashboard/traces" className="text-[#4DE5FC] hover:underline">Traces dashboard</Link> within seconds. OpenAI and Anthropic calls are captured automatically.
               </p>
             </Step>
           </section>
@@ -92,10 +107,12 @@ def run_agent(message: str):
           {/* Install */}
           <section id="install" className="space-y-4">
             <h2 className="text-2xl font-bold border-b border-white/5 pb-4">Installation</h2>
-            <p className="text-zinc-400 text-sm leading-relaxed">Requires Python 3.8+. Install via pip:</p>
-            <CodeBlockServer lang="bash">{`pip install vantra`}</CodeBlockServer>
-            <p className="text-zinc-400 text-sm">Or with a specific version:</p>
-            <CodeBlockServer lang="bash">{`pip install vantra==0.1.0`}</CodeBlockServer>
+            <p className="text-zinc-400 text-sm leading-relaxed">Python 3.8+ or Node.js 14+.</p>
+            <CodeBlockServer lang="bash">{`# Python
+pip install vantra
+
+# Node.js / TypeScript
+npm install @gabeeaton/vantra`}</CodeBlockServer>
           </section>
 
           {/* init */}
