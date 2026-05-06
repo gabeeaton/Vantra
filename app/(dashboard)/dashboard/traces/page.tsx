@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 
@@ -34,9 +35,19 @@ export default function TracesPage() {
   const [offset, setOffset] = useState(0)
   const [statusFilter, setStatusFilter] = useState('')
   const [loading, setLoading] = useState(true)
+  const searchParams = useSearchParams()
+  const isDemo = searchParams.get('demo') === 'true'
   const limit = 50
 
   useEffect(() => {
+    if (isDemo) {
+      fetch('/api/demo').then(r => r.json()).then(d => {
+        setTraces(d.traces ?? [])
+        setTotal(d.traces?.length ?? 0)
+        setLoading(false)
+      })
+      return
+    }
     setLoading(true)
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
     if (statusFilter) params.set('status', statusFilter)
@@ -45,7 +56,7 @@ export default function TracesPage() {
       setTotal(d.total ?? 0)
       setLoading(false)
     })
-  }, [offset, statusFilter])
+  }, [offset, statusFilter, isDemo])
 
   return (
     <div className="space-y-6">
@@ -88,7 +99,7 @@ export default function TracesPage() {
               >
                 <td className="py-3 px-4">
                   <Link
-                    href={`/dashboard/traces/${trace.id}`}
+                    href={`/dashboard/traces/${trace.id}${isDemo ? '?demo=true' : ''}`}
                     className="text-white hover:text-zinc-300 font-mono text-xs"
                   >
                     {trace.name || 'Unnamed trace'}

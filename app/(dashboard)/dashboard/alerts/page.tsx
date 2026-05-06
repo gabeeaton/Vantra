@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -29,10 +30,16 @@ export default function AlertsPage() {
   const [form, setForm] = useState({ name: '', metric: 'error_rate', threshold: '', email: '', slack: '' })
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
+  const searchParams = useSearchParams()
+  const isDemo = searchParams.get('demo') === 'true'
 
   useEffect(() => {
+    if (isDemo) {
+      fetch('/api/demo').then(r => r.json()).then(d => { setAlerts(d.alerts ?? []); setFetching(false) })
+      return
+    }
     fetch('/api/alerts').then(r => r.json()).then(d => { setAlerts(d.alerts ?? []); setFetching(false) })
-  }, [])
+  }, [isDemo])
 
   async function createAlert() {
     if (!form.name || !form.threshold || !form.email) return

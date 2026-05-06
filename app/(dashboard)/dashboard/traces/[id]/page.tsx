@@ -4,6 +4,7 @@ import { TraceWaterfall } from '@/components/trace-waterfall'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { use } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 interface Trace {
   id: string
@@ -39,8 +40,18 @@ export default function TracePage({ params }: { params: Promise<{ id: string }> 
   const [spans, setSpans] = useState<Span[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const searchParams = useSearchParams()
+  const isDemo = searchParams.get('demo') === 'true'
 
   useEffect(() => {
+    if (isDemo) {
+      fetch('/api/demo').then(r => r.json()).then(data => {
+        setTrace(data.traceDetail.trace)
+        setSpans(data.traceDetail.spans ?? [])
+        setLoading(false)
+      })
+      return
+    }
     fetch(`/api/traces/${id}`)
       .then(r => {
         if (!r.ok) { setNotFound(true); setLoading(false); return null }
@@ -52,12 +63,12 @@ export default function TracePage({ params }: { params: Promise<{ id: string }> 
         setSpans(data.spans ?? [])
         setLoading(false)
       })
-  }, [id])
+  }, [id, isDemo])
 
   return (
     <div className="space-y-6 animate-fade-up">
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/traces" className="text-zinc-500 hover:text-zinc-300 text-sm transition-colors">
+        <Link href={`/dashboard/traces${isDemo ? '?demo=true' : ''}`} className="text-zinc-500 hover:text-zinc-300 text-sm transition-colors">
           ← Traces
         </Link>
         <span className="text-zinc-700">/</span>
