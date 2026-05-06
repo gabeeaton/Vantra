@@ -2,7 +2,7 @@ import { resolveApiKey } from '@/lib/ingest-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
 const PLAN_LIMITS: Record<string, number> = {
-  free: 10_000,
+  free: 50_000,
   pro: 1_000_000,
   team: 10_000_000,
   enterprise: Infinity,

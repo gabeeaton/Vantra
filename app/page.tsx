@@ -14,10 +14,6 @@ export default function LandingPage() {
         {/* Ambient top glow — very subtle */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[400px] bg-[radial-gradient(ellipse_80%_40%_at_50%_0%,rgba(77,229,252,0.07),transparent)] -z-10" />
 
-        <div className="hero-badge inline-flex items-center gap-2 bg-[#4DE5FC]/10 border border-[#4DE5FC]/20 text-[#4DE5FC] text-xs font-medium px-3 py-1.5 rounded-full mb-8">
-          <span className="w-1.5 h-1.5 bg-[#4DE5FC] rounded-full animate-pulse" />
-          Now in beta — free for early teams
-        </div>
 
         <h1 className="hero-title text-5xl sm:text-7xl font-black tracking-tight leading-none mb-6">
           See inside your
