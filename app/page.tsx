@@ -192,22 +192,22 @@ export default function LandingPage() {
               <tr className="bg-[#4DE5FC]/5 border border-[#4DE5FC]/20 rounded-xl">
                 <td className="py-3 pr-6 font-bold text-[#4DE5FC]">Vantra</td>
                 <td className="py-3 px-4 text-green-400">3 lines</td>
-                <td className="py-3 px-4 text-green-400">Free → $79/mo</td>
-                <td className="py-3 px-4 text-green-400">Built-in</td>
+                <td className="py-3 px-4 text-green-400">Free → $29/mo</td>
+                <td className="py-3 px-4 text-green-400">Anomaly detection built-in</td>
                 <td className="py-3 px-4 text-green-400">Any</td>
               </tr>
               <tr>
                 <td className="py-3 pr-6 text-zinc-300">LangSmith</td>
                 <td className="py-3 px-4 text-zinc-500">Medium</td>
-                <td className="py-3 px-4 text-zinc-500">$39/user/mo</td>
+                <td className="py-3 px-4 text-zinc-500">$39/seat/mo</td>
                 <td className="py-3 px-4 text-zinc-500">Limited</td>
-                <td className="py-3 px-4 text-zinc-500">LangChain-first</td>
+                <td className="py-3 px-4 text-zinc-500">LangChain-optimized</td>
               </tr>
               <tr>
                 <td className="py-3 pr-6 text-zinc-300">Langfuse</td>
                 <td className="py-3 px-4 text-zinc-500">Medium</td>
-                <td className="py-3 px-4 text-zinc-500">Self-host or $</td>
-                <td className="py-3 px-4 text-red-400">None</td>
+                <td className="py-3 px-4 text-zinc-500">Free (self-host) or $29/mo</td>
+                <td className="py-3 px-4 text-zinc-500">Basic</td>
                 <td className="py-3 px-4 text-zinc-500">Any</td>
               </tr>
               <tr>
@@ -244,11 +244,12 @@ export default function LandingPage() {
             },
             {
               name: 'Pro',
-              price: '$79',
+              price: '$29',
               period: 'per month',
               features: ['1M spans/month', '10 projects', '30-day retention', 'Email alerts', 'All Free features'],
               cta: 'Get started',
               highlight: true,
+              badge: 'Launch pricing',
             },
             {
               name: 'Team',
@@ -273,9 +274,12 @@ export default function LandingPage() {
                   <div className="text-[#4DE5FC] text-xs font-bold uppercase tracking-wider mb-3">Most popular</div>
                 )}
                 <h3 className="text-xl font-bold text-white mb-1">{plan.name}</h3>
-                <div className="flex items-baseline gap-1 mb-1">
+                <div className="flex items-baseline gap-2 mb-1">
                   <span className="text-4xl font-black text-white">{plan.price}</span>
                   <span className="text-zinc-500 text-sm">/{plan.period}</span>
+                  {'badge' in plan && plan.badge && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#4DE5FC] bg-[#4DE5FC]/10 px-1.5 py-0.5 rounded">{plan.badge}</span>
+                  )}
                 </div>
                 <ul className="mt-6 space-y-3 mb-8">
                   {plan.features.map((f) => (

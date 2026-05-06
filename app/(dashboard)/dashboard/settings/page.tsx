@@ -244,8 +244,8 @@ export default function SettingsPage() {
 
         <div className="divide-y divide-white/[0.04]">
           {[
-            { plan: 'free', label: 'Free', price: '$0', desc: '10K spans/month · 1 project · 7-day retention', current: plan === 'free' },
-            { plan: 'pro', label: 'Pro', price: '$79/mo', desc: '1M spans/month · 10 projects · 30-day retention · Email alerts', current: plan === 'pro' },
+            { plan: 'free', label: 'Free', price: '$0', desc: '50K spans/month · 1 project · 7-day retention', current: plan === 'free' },
+            { plan: 'pro', label: 'Pro', price: '$29/mo', desc: '1M spans/month · 10 projects · 30-day retention · Email alerts', current: plan === 'pro' },
             { plan: 'team', label: 'Team', price: '$299/mo', desc: '10M spans/month · Unlimited projects · 90-day retention · Slack alerts', current: plan === 'team' },
           ].map((tier) => (
             <div key={tier.plan} className="px-6 py-4 flex items-center justify-between">
