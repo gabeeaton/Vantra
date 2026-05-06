@@ -315,7 +315,13 @@ export default function LandingPage() {
       <footer className="border-t border-white/5 px-6 py-8">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Logo />
-          <p className="text-zinc-600 text-sm">© 2025 Vantra. Built for engineers.</p>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <p className="text-zinc-600 text-sm">© 2026 Vantra. Built by Gabe Eaton.</p>
+            <a href="https://vantradev.betteruptime.com/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-400 transition-colors">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
+              All systems operational
+            </a>
+          </div>
         </div>
       </footer>
     </div>
