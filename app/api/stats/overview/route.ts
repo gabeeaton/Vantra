@@ -16,15 +16,14 @@ export async function GET(req: NextRequest) {
 
   const orgId = userData.org_id
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-  const sinceToday = new Date(new Date().setHours(0, 0, 0, 0)).toISOString()
 
   const [tracesResult, errorResult, costResult, avgLatencyResult] = await Promise.all([
-    // Total traces today
+    // Total traces last 24h
     supabase
       .from('traces')
       .select('id', { count: 'exact', head: true })
       .eq('org_id', orgId)
-      .gte('created_at', sinceToday),
+      .gte('created_at', since24h),
 
     // Error count last 24h
     supabase
@@ -34,12 +33,12 @@ export async function GET(req: NextRequest) {
       .eq('status', 'error')
       .gte('created_at', since24h),
 
-    // Total cost today
+    // Total cost last 24h
     supabase
       .from('traces')
       .select('total_cost_usd')
       .eq('org_id', orgId)
-      .gte('created_at', sinceToday),
+      .gte('created_at', since24h),
 
     // Avg latency last 24h
     supabase

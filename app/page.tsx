@@ -1,58 +1,49 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { ScrollReveal } from '@/components/scroll-reveal'
+import { Nav } from '@/components/nav'
 import { GitBranch, DollarSign, Bell, Puzzle, SearchCode, BarChart3 } from 'lucide-react'
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-black text-white font-[family-name:var(--font-inter)]">
-      {/* Nav */}
-      <nav className="border-b border-white/5 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Logo />
-          <div className="flex items-center gap-6">
-            <Link href="/docs" className="text-sm text-zinc-400 hover:text-white transition-colors">Docs</Link>
-            <Link href="#pricing" className="text-sm text-zinc-400 hover:text-white transition-colors">Pricing</Link>
-            <Link href="/login" className="text-sm text-zinc-400 hover:text-white transition-colors">Sign in</Link>
-            <Link href="/login" className="text-sm bg-[#4DE5FC] text-black font-semibold px-4 py-2 rounded-lg hover:bg-[#3dd4ea] transition-colors">
-              Get started free
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Nav />
 
       {/* Hero */}
-      <section className="max-w-6xl mx-auto px-6 pt-24 pb-20 text-center animate-fade-up">
-        <div className="inline-flex items-center gap-2 bg-[#4DE5FC]/10 border border-[#4DE5FC]/20 text-[#4DE5FC] text-xs font-medium px-3 py-1.5 rounded-full mb-8">
+      <section className="relative max-w-6xl mx-auto px-6 pt-24 pb-20 text-center overflow-hidden">
+        {/* Ambient top glow — very subtle */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[400px] bg-[radial-gradient(ellipse_80%_40%_at_50%_0%,rgba(77,229,252,0.07),transparent)] -z-10" />
+
+        <div className="hero-badge inline-flex items-center gap-2 bg-[#4DE5FC]/10 border border-[#4DE5FC]/20 text-[#4DE5FC] text-xs font-medium px-3 py-1.5 rounded-full mb-8">
           <span className="w-1.5 h-1.5 bg-[#4DE5FC] rounded-full animate-pulse" />
           Now in beta — free for early teams
         </div>
 
-        <h1 className="text-5xl sm:text-7xl font-black tracking-tight leading-none mb-6">
+        <h1 className="hero-title text-5xl sm:text-7xl font-black tracking-tight leading-none mb-6">
           See inside your
           <br />
           <span className="text-[#4DE5FC]">AI agents.</span>
         </h1>
 
-        <p className="text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+        <p className="hero-sub text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
           Vantra gives engineers full visibility into every LLM call, tool invocation, and decision their agents make in production — before users find the bugs.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
-          <Link href="/login" className="bg-[#4DE5FC] text-black font-bold px-8 py-4 rounded-xl hover:bg-[#3dd4ea] transition-colors text-base">
+        <div className="hero-cta flex flex-col sm:flex-row gap-3 justify-center mb-6">
+          <Link href="/login" className="bg-[#4DE5FC] text-black font-bold px-8 py-4 rounded-xl hover:bg-[#3dd4ea] active:scale-[0.98] transition-all text-base">
             Start for free
           </Link>
-          <a href="#how-it-works" className="border border-white/10 text-white font-medium px-8 py-4 rounded-xl hover:bg-white/5 transition-colors text-base">
+          <a href="#how-it-works" className="border border-white/10 text-white font-medium px-8 py-4 rounded-xl hover:bg-white/[0.06] active:scale-[0.98] transition-all text-base">
             See how it works
           </a>
         </div>
-        <p className="text-zinc-600 text-sm">No credit card required · 3-line setup · works with any framework</p>
+        <p className="hero-footnote text-zinc-600 text-sm">No credit card required · 3-line setup · works with any framework</p>
       </section>
 
       {/* Fake terminal / trace preview */}
       <section className="max-w-5xl mx-auto px-6 pb-24">
         <ScrollReveal>
-        <div className="bg-zinc-950 border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-[#4DE5FC]/5">
+        <div className="bg-zinc-950 border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/60">
           {/* Window chrome */}
           <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5 bg-zinc-900/50">
             <div className="w-3 h-3 rounded-full bg-red-500/70" />
@@ -70,29 +61,31 @@ export default function LandingPage() {
           </div>
 
           {/* Spans */}
-          <div className="divide-y divide-white/5">
-            {[
-              { name: 'support_agent_run', kind: 'agent', model: '', duration: '4,231ms', tokens: '', cost: '', bar: { left: 0, width: 100, color: 'bg-zinc-600' }, indent: 0 },
-              { name: 'openai.chat (classify)', kind: 'llm', model: 'gpt-4o-mini', duration: '312ms', tokens: '220', cost: '$0.0001', bar: { left: 0, width: 8, color: 'bg-blue-500' }, indent: 1 },
-              { name: 'tool.search_knowledge', kind: 'tool', model: '', duration: '891ms', tokens: '', cost: '', bar: { left: 8, width: 21, color: 'bg-green-500' }, indent: 1 },
-              { name: 'openai.chat (respond)', kind: 'llm', model: 'gpt-4o', duration: '2,891ms', tokens: '1,240', cost: '$0.0041', bar: { left: 29, width: 68, color: 'bg-blue-500' }, indent: 1, slow: true },
-              { name: 'tool.send_email', kind: 'tool', model: '', duration: '137ms', tokens: '', cost: '', bar: { left: 97, width: 3, color: 'bg-green-500' }, indent: 1 },
-            ].map((span, i) => (
-              <div key={i} className="flex items-center gap-4 px-6 py-2.5 hover:bg-white/[0.02] transition-colors">
-                <div className="flex items-center gap-2 w-64 flex-shrink-0" style={{ paddingLeft: `${span.indent * 20}px` }}>
-                  <span className="text-zinc-200 text-xs font-mono truncate">{span.name}</span>
-                  {span.slow && <span className="text-yellow-500 text-xs">⚠</span>}
+          <div className="overflow-x-auto">
+            <div className="divide-y divide-white/5 min-w-[640px]">
+              {[
+                { name: 'support_agent_run', kind: 'agent', model: '', duration: '4,231ms', tokens: '', cost: '', bar: { left: 0, width: 100, color: 'bg-zinc-600' }, indent: 0 },
+                { name: 'openai.chat (classify)', kind: 'llm', model: 'gpt-4o-mini', duration: '312ms', tokens: '220', cost: '$0.0001', bar: { left: 0, width: 8, color: 'bg-blue-500' }, indent: 1 },
+                { name: 'tool.search_knowledge', kind: 'tool', model: '', duration: '891ms', tokens: '', cost: '', bar: { left: 8, width: 21, color: 'bg-green-500' }, indent: 1 },
+                { name: 'openai.chat (respond)', kind: 'llm', model: 'gpt-4o', duration: '2,891ms', tokens: '1,240', cost: '$0.0041', bar: { left: 29, width: 68, color: 'bg-blue-500' }, indent: 1, slow: true },
+                { name: 'tool.send_email', kind: 'tool', model: '', duration: '137ms', tokens: '', cost: '', bar: { left: 97, width: 3, color: 'bg-green-500' }, indent: 1 },
+              ].map((span, i) => (
+                <div key={i} className="flex items-center gap-4 px-6 py-2.5 hover:bg-white/[0.02] transition-colors">
+                  <div className="flex items-center gap-2 w-64 flex-shrink-0" style={{ paddingLeft: `${span.indent * 20}px` }}>
+                    <span className="text-zinc-200 text-xs font-mono truncate">{span.name}</span>
+                    {span.slow && <span className="text-yellow-500 text-xs">⚠</span>}
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded border flex-shrink-0 ${span.kind === 'llm' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : span.kind === 'tool' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-zinc-700 text-zinc-400 border-zinc-600'}`}>
+                    {span.kind}
+                  </span>
+                  <span className="text-zinc-500 text-xs font-mono w-24 flex-shrink-0">{span.model}</span>
+                  <span className="text-zinc-400 text-xs tabular-nums w-16 flex-shrink-0 text-right">{span.duration}</span>
+                  <div className="flex-1 relative h-3 bg-zinc-800 rounded overflow-hidden min-w-[80px]">
+                    <div className={`absolute top-0 h-full rounded opacity-70 ${span.bar.color}`} style={{ left: `${span.bar.left}%`, width: `${span.bar.width}%` }} />
+                  </div>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded border flex-shrink-0 ${span.kind === 'llm' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : span.kind === 'tool' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-zinc-700 text-zinc-400 border-zinc-600'}`}>
-                  {span.kind}
-                </span>
-                <span className="text-zinc-500 text-xs font-mono w-24 flex-shrink-0">{span.model}</span>
-                <span className="text-zinc-400 text-xs tabular-nums w-16 flex-shrink-0 text-right">{span.duration}</span>
-                <div className="flex-1 relative h-3 bg-zinc-800 rounded overflow-hidden">
-                  <div className={`absolute top-0 h-full rounded opacity-70 ${span.bar.color}`} style={{ left: `${span.bar.left}%`, width: `${span.bar.width}%` }} />
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
         </ScrollReveal>
@@ -165,7 +158,7 @@ export default function LandingPage() {
             { Icon: BarChart3, title: 'Usage analytics', body: 'Dashboards for token usage, model distribution, and latency trends. Make data-driven decisions about your stack.' },
           ].map((f, i) => (
             <ScrollReveal key={f.title} delay={i * 60}>
-              <div className="bg-zinc-950 border border-white/5 rounded-2xl p-6 hover:border-[#4DE5FC]/20 transition-colors h-full">
+              <div className="card-hover bg-zinc-950 border border-white/5 rounded-2xl p-6 h-full">
                 <div className="w-9 h-9 rounded-lg bg-[#4DE5FC]/10 border border-[#4DE5FC]/20 flex items-center justify-center mb-4">
                   <f.Icon size={16} className="text-[#4DE5FC]" strokeWidth={1.75} />
                 </div>
@@ -245,7 +238,7 @@ export default function LandingPage() {
               name: 'Free',
               price: '$0',
               period: 'forever',
-              features: ['10K spans/month', '1 project', '7-day retention', 'Waterfall traces', 'Cost tracking'],
+              features: ['50K spans/month', '1 project', '7-day retention', 'Waterfall traces', 'Cost tracking'],
               cta: 'Start free',
               highlight: false,
             },

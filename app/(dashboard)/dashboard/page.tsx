@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface Stats {
   tracesToday: number
@@ -21,13 +22,23 @@ interface Trace {
   projects: { name: string } | null
 }
 
+interface DayBucket {
+  date: string
+  traces: number
+  tokens: number
+  cost: number
+  errors: number
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [traces, setTraces] = useState<Trace[]>([])
+  const [chart, setChart] = useState<DayBucket[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch('/api/stats/overview').then((r) => r.json()).then(setStats)
+    fetch('/api/stats/chart').then((r) => r.json()).then((d) => setChart(d.days ?? []))
     fetch('/api/traces?limit=8')
       .then((r) => r.json())
       .then((d) => { setTraces(d.traces ?? []); setLoading(false) })
@@ -37,8 +48,14 @@ export default function DashboardPage() {
     ? ((stats.errorsLast24h / stats.tracesToday) * 100).toFixed(1)
     : '0'
 
+  const hasData = !loading && traces.length > 0
+
   return (
     <div className="space-y-8 animate-fade-up">
+
+      {/* Getting started banner — hidden once they have traces */}
+      {!loading && !hasData && <GettingStarted />}
+
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
@@ -52,33 +69,39 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger">
-        <StatCard
-          label="Traces today"
-          value={stats?.tracesToday ?? null}
-          format={(v) => v.toLocaleString()}
-          accent="#4DE5FC"
-        />
-        <StatCard
-          label="Error rate"
-          value={stats ? parseFloat(errorRate) : null}
-          format={(v) => `${v}%`}
-          accent={parseFloat(errorRate) > 5 ? '#ef4444' : '#22c55e'}
-          sub={stats ? `${stats.errorsLast24h} errors` : undefined}
-        />
-        <StatCard
-          label="Avg latency"
-          value={stats?.avgLatencyMs ?? null}
-          format={(v) => `${v.toLocaleString()}ms`}
-          accent="#a78bfa"
-        />
-        <StatCard
-          label="Cost today"
-          value={stats?.totalCostToday ?? null}
-          format={(v) => `$${v.toFixed(4)}`}
-          accent="#fb923c"
-        />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Traces (24h)" value={stats?.tracesToday ?? null} format={(v) => v.toLocaleString()} accent="#4DE5FC" delay={0} />
+        <StatCard label="Error rate" value={stats ? parseFloat(errorRate) : null} format={(v) => `${v}%`} accent={parseFloat(errorRate) > 5 ? '#ef4444' : '#22c55e'} sub={stats ? `${stats.errorsLast24h} errors` : undefined} delay={60} />
+        <StatCard label="Avg latency" value={stats?.avgLatencyMs ?? null} format={(v) => `${v.toLocaleString()}ms`} accent="#a78bfa" delay={120} />
+        <StatCard label="Cost (24h)" value={stats?.totalCostToday ?? null} format={(v) => `$${v.toFixed(4)}`} accent="#fb923c" delay={180} />
       </div>
+
+      {/* 7-day chart */}
+      {chart.length > 0 && chart.some(d => d.traces > 0) && (
+        <div className="bg-[#0d0d0d] border border-white/5 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Traces — last 7 days</p>
+          </div>
+          <ResponsiveContainer width="100%" height={80}>
+            <BarChart data={chart} barCategoryGap="30%">
+              <XAxis
+                dataKey="date"
+                tickFormatter={(v) => new Date(v + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
+                tick={{ fill: '#52525b', fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                contentStyle={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 12 }}
+                labelFormatter={(v) => new Date(v + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                formatter={(v, name) => [v, name === 'traces' ? 'Traces' : String(name)]}
+              />
+              <Bar dataKey="traces" fill="#4DE5FC" opacity={0.7} radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* Recent traces */}
       <div className="space-y-3">
@@ -147,17 +170,21 @@ export default function DashboardPage() {
   )
 }
 
-function StatCard({ label, value, format, accent, sub }: {
+function StatCard({ label, value, format, accent, sub, delay = 0 }: {
   label: string
   value: number | null
   format: (v: number) => string
   accent: string
   sub?: string
+  delay?: number
 }) {
   return (
-    <div className="animate-fade-up bg-[#0d0d0d] border border-white/5 rounded-xl p-5 glow-card">
+    <div
+      className="animate-fade-up card-hover bg-[#0d0d0d] border border-white/5 rounded-xl p-5"
+      style={{ animationDelay: `${delay}ms` }}
+    >
       <p className="text-zinc-600 text-xs font-medium uppercase tracking-wider mb-3">{label}</p>
-      <p className="text-2xl font-bold text-white tabular-nums" style={{ color: value !== null ? undefined : '#3f3f46' }}>
+      <p className="text-2xl font-bold tabular-nums" style={{ color: value !== null ? 'white' : '#3f3f46' }}>
         {value !== null ? format(value) : '—'}
       </p>
       {sub && <p className="text-zinc-600 text-xs mt-1">{sub}</p>}
@@ -204,11 +231,63 @@ function EmptyState() {
       </div>
       <div>
         <p className="text-white font-medium">No traces yet</p>
-        <p className="text-zinc-600 text-sm mt-1">Send your first trace to see data here</p>
+        <p className="text-zinc-600 text-sm mt-1">Follow the steps above to send your first trace</p>
       </div>
-      <code className="inline-block text-xs text-[#4DE5FC] bg-[#4DE5FC]/5 border border-[#4DE5FC]/20 px-4 py-2 rounded-lg">
-        pip install vantra
-      </code>
+    </div>
+  )
+}
+
+function GettingStarted() {
+  const steps = [
+    {
+      n: '1',
+      title: 'Install the SDK',
+      code: 'pip install vantra',
+    },
+    {
+      n: '2',
+      title: 'Get your API key',
+      body: 'Go to Settings → API Keys and create a key.',
+      link: { href: '/dashboard/settings', label: 'Open Settings →' },
+    },
+    {
+      n: '3',
+      title: 'Add 3 lines to your agent',
+      code: `import vantra\nvantra.init(api_key="van_live_...", project="my-agent")\n@vantra.trace\ndef run_agent(...):\n    ...  # your existing code`,
+    },
+    {
+      n: '4',
+      title: 'Run your agent',
+      body: 'Traces appear here automatically. OpenAI calls are captured with no extra code.',
+    },
+  ]
+
+  return (
+    <div className="bg-[#0d0d0d] border border-white/5 rounded-xl p-6 space-y-5">
+      <div>
+        <h2 className="text-white font-semibold text-sm">Get started in 2 minutes</h2>
+        <p className="text-zinc-600 text-xs mt-0.5">Follow these steps to send your first trace</p>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        {steps.map((step) => (
+          <div key={step.n} className="flex gap-3">
+            <div className="w-5 h-5 rounded-full bg-[#4DE5FC]/10 border border-[#4DE5FC]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-[#4DE5FC] text-[10px] font-bold">{step.n}</span>
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-white text-xs font-medium">{step.title}</p>
+              {step.body && <p className="text-zinc-500 text-xs">{step.body}</p>}
+              {step.link && (
+                <a href={step.link.href} className="text-[#4DE5FC] text-xs hover:underline">{step.link.label}</a>
+              )}
+              {step.code && (
+                <pre className="text-[11px] text-[#4DE5FC] bg-[#4DE5FC]/5 border border-[#4DE5FC]/10 rounded-lg px-3 py-2 font-mono overflow-x-auto">{step.code}</pre>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

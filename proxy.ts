@@ -23,18 +23,28 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  const isDashboard = request.nextUrl.pathname.startsWith('/dashboard')
-  const isOnboarding = request.nextUrl.pathname.startsWith('/onboarding')
+  const { pathname } = request.nextUrl
+  const isAuthed = !!user
+  const isDashboard = pathname.startsWith('/dashboard')
+  const isOnboarding = pathname.startsWith('/onboarding')
+  const isAuthRoute = pathname === '/login'
+  const isLanding = pathname === '/'
 
-  if (!session && (isDashboard || isOnboarding)) {
+  // Not signed in → protect dashboard/onboarding
+  if (!isAuthed && (isDashboard || isOnboarding)) {
     return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // Signed in → skip login page, go straight to dashboard
+  if (isAuthed && isAuthRoute) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return supabaseResponse
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/onboarding/:path*'],
+  matcher: ['/login', '/dashboard/:path*', '/onboarding/:path*'],
 }

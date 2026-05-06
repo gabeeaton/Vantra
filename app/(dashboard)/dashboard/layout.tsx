@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -15,12 +15,15 @@ const NAV = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const [email, setEmail] = useState('')
 
   useEffect(() => {
     createClient().auth.getUser().then(({ data }) => {
       if (data.user?.email) setEmail(data.user.email)
     })
+    // Eagerly prefetch all dashboard routes so tab switches feel instant
+    NAV.forEach(({ href }) => router.prefetch(href))
   }, [])
 
   return (
