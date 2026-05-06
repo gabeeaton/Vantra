@@ -251,7 +251,7 @@ export default function LandingPage() {
               name: 'Team',
               price: '$299',
               period: 'per month',
-              features: ['10M spans/month', 'Unlimited projects', '1-year retention', 'Slack alerts', '5 team seats'],
+              features: ['10M spans/month', 'Unlimited projects', '1-year retention', 'Slack alerts', 'Priority support'],
               cta: 'Get started',
               highlight: false,
             },
