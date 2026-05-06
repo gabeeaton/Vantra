@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { CodeBlockServer } from '@/components/code-block-server'
+import { Nav } from '@/components/nav'
 
 export const metadata = {
   title: 'Docs — Vantra',
@@ -10,24 +11,9 @@ export const metadata = {
 export default function DocsPage() {
   return (
     <div className="min-h-screen bg-black text-white font-[family-name:var(--font-inter)]">
-      {/* Nav */}
-      <nav className="border-b border-white/5 px-6 py-4 sticky top-0 bg-black/80 backdrop-blur-sm z-10">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
-            <Image src="/logo.jpeg" alt="Vantra" width={28} height={28} className="rounded-md" />
-            <span className="font-black text-white text-base tracking-tight">Vantra</span>
-            <span className="text-zinc-600 text-sm ml-1">/ Docs</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-sm text-zinc-400 hover:text-white transition-colors">Dashboard</Link>
-            <Link href="/login" className="text-sm bg-[#4DE5FC] text-black font-semibold px-4 py-1.5 rounded-lg hover:bg-[#3dd4ea] transition-colors">
-              Get started
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Nav />
 
-      <div className="max-w-5xl mx-auto px-6 py-16 flex gap-16">
+      <div className="max-w-5xl mx-auto px-6 py-16 flex gap-16 overflow-x-hidden">
         {/* Sidebar */}
         <aside className="hidden lg:block w-48 flex-shrink-0">
           <div className="sticky top-24 space-y-1">
