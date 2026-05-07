@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
         .from('spans')
         .select('trace_id')
         .eq('org_id', rule.org_id)
-        .gte('start_time', windowStart)
+        .gte('created_at', windowStart)
         .not('trace_id', 'is', null)
 
       if (data && data.length > 0) {
