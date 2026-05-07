@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "jest",
+    "test": "jest --testPathPatterns=tests/sdk.test.ts",
+    "test:integration": "jest --testPathPatterns=tests/integration.test.ts --testTimeout=60000",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

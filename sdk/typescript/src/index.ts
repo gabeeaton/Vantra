@@ -9,7 +9,6 @@ const config = {
   captureIo: true,
 }
 
-// AsyncLocalStorage for trace context (Node.js 12.17+)
 let asyncLocalStorage: import('async_hooks').AsyncLocalStorage<{ traceId: string; spans: SpanData[] }> | null = null
 try {
   const { AsyncLocalStorage } = require('async_hooks')
@@ -91,6 +90,20 @@ function truncate(data: unknown, maxChars = 2000): unknown {
   }
 }
 
+// Proxy the original stream so all SDK methods (.controller, .toReadableStream(), etc.)
+// remain accessible while iteration flows through our tracking generator.
+function _proxyStream<T extends object>(original: T, gen: AsyncGenerator<unknown>): T {
+  return new Proxy(original, {
+    get(target, prop) {
+      if (prop === Symbol.asyncIterator) {
+        return () => gen[Symbol.asyncIterator]()
+      }
+      const val = (target as Record<string | symbol, unknown>)[prop]
+      return typeof val === 'function' ? (val as (...args: unknown[]) => unknown).bind(target) : val
+    },
+  })
+}
+
 export interface InitOptions {
   apiKey: string
   project: string
@@ -165,7 +178,6 @@ export function trace<T extends (...args: unknown[]) => unknown>(
       }
       if (syncErr !== undefined) { finish(); throw syncErr }
 
-      // Async function — wait for the promise before posting
       if (result !== null && result !== undefined && typeof (result as Promise<unknown>).then === 'function') {
         return (result as Promise<unknown>)
           .catch((e: unknown) => {
@@ -176,7 +188,6 @@ export function trace<T extends (...args: unknown[]) => unknown>(
           .finally(finish)
       }
 
-      // Synchronous function
       finish()
       return result
     }
@@ -243,7 +254,7 @@ export async function span<T>(
   }
 }
 
-// ─── OpenAI patch ────────────────────────────────────────────────────────────
+// ─── OpenAI patch ─────────────────────────────────────────────────────────────
 
 function patchOpenAI(): void {
   try {
@@ -265,17 +276,18 @@ function patchOpenAI(): void {
           kwargs = { ...kwargs, stream_options: { include_usage: true } }
           args = [kwargs, ...args.slice(1)]
         }
-        let rawStream: AsyncIterable<Record<string, unknown>>
+        let rawStream: AsyncIterable<Record<string, unknown>> & object
         try {
-          rawStream = await original.apply(this, args) as AsyncIterable<Record<string, unknown>>
+          rawStream = await original.apply(this, args) as AsyncIterable<Record<string, unknown>> & object
         } catch (e) {
           queueSpan(_openaiErrorSpan(model, messages, captureIo, start, e instanceof Error ? e.message : String(e)))
           throw e
         }
-        return _wrapOpenAIStream(rawStream, start, model, messages, captureIo)
+        const gen = _trackOpenAIStream(rawStream, start, model, messages, captureIo)
+        return _proxyStream(rawStream, gen)
       }
 
-      // Non-streaming path
+      // Non-streaming
       let status = 'ok'
       let errorMsg: string | null = null
       let response: Record<string, unknown> | null = null
@@ -350,7 +362,7 @@ function _openaiErrorSpan(
   }
 }
 
-async function* _wrapOpenAIStream(
+async function* _trackOpenAIStream(
   stream: AsyncIterable<Record<string, unknown>>,
   start: number,
   model: string,
@@ -425,17 +437,18 @@ function patchAnthropic(): void {
       const captureIo = config.captureIo
 
       if (kwargs?.stream) {
-        let rawStream: AsyncIterable<Record<string, unknown>>
+        let rawStream: AsyncIterable<Record<string, unknown>> & object
         try {
-          rawStream = await original.apply(this, args) as AsyncIterable<Record<string, unknown>>
+          rawStream = await original.apply(this, args) as AsyncIterable<Record<string, unknown>> & object
         } catch (e) {
           queueSpan(_anthropicErrorSpan(model, messages, captureIo, start, e instanceof Error ? e.message : String(e)))
           throw e
         }
-        return _wrapAnthropicStream(rawStream, start, model, messages, captureIo)
+        const gen = _trackAnthropicStream(rawStream, start, model, messages, captureIo)
+        return _proxyStream(rawStream, gen)
       }
 
-      // Non-streaming path
+      // Non-streaming
       let status = 'ok'
       let errorMsg: string | null = null
       let response: Record<string, unknown> | null = null
@@ -510,7 +523,7 @@ function _anthropicErrorSpan(
   }
 }
 
-async function* _wrapAnthropicStream(
+async function* _trackAnthropicStream(
   stream: AsyncIterable<Record<string, unknown>>,
   start: number,
   model: string,

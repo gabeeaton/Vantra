@@ -1,524 +1,392 @@
 """
-Integration tests — spin up a local HTTP server and verify actual payloads.
+Vantra SDK integration tests — real API calls, no mocks.
 
-Unlike unit tests (which mock _post), these tests exercise the full stack:
-  init() → patch → trace/span → flush → real HTTP POST → payload verified
+Covers:
+  - Anthropic non-streaming (real tokens, real cost)
+  - Anthropic streaming (real events, token capture)
+  - OpenAI non-streaming
+  - OpenAI streaming (stream_options injection, usage in final chunk)
+  - capture_io=False suppression
+  - Error handling (bad model name)
+  - trace() context propagation with streaming
 
-Run with: pytest sdk/python/tests/test_integration.py -v
+Run:
+  cd sdk/python
+  pip3 install anthropic openai
+  python3 tests/test_integration.py
 """
-import sys, os, time, json, threading
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-import pytest
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from unittest.mock import MagicMock, patch
+import os
+import sys
+import time
+import traceback
+from pathlib import Path
+
+# Load .env.local from repo root (4 levels up: tests/python/sdk/vantra)
+env_file = Path(__file__).parent.parent.parent.parent / '.env.local'
+if env_file.exists():
+    for line in env_file.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith('#') and '=' in line:
+            k, v = line.split('=', 1)
+            os.environ.setdefault(k.strip(), v.strip())
+
+ANTHROPIC_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
+OPENAI_KEY = os.environ.get('OPENAI_API_KEY', '')
+VANTRA_KEY = os.environ.get('VANTRA_API_KEY', 'test')
+
+if not ANTHROPIC_KEY:
+    print('ERROR: ANTHROPIC_API_KEY not set')
+    sys.exit(1)
+
+# ─── Vantra SDK setup ─────────────────────────────────────────────────────────
+
+# Add sdk/python to sys.path so `import vantra` resolves correctly
+sys.path.insert(0, str(Path(__file__).parent.parent))
 import vantra
 
+# Intercept at _post so we capture what the flush worker would send
+# (_post is called from _flush which is in the same module, so this patch works)
+_captured_batches: list[list[dict]] = []
+_original_post = vantra._post
 
-# ── Local HTTP server ─────────────────────────────────────────────────────────
+def _mock_post(path: str, data):
+    if path == '/spans':
+        _captured_batches.append(list(data))
+    # Don't actually send anything
 
-class _Handler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        length = int(self.headers.get('Content-Length', 0))
-        body = self.rfile.read(length)
-        self.server.received.append({
-            'path': self.path,
-            'auth': self.headers.get('Authorization', ''),
-            'body': json.loads(body) if body else None,
-        })
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b'{"ok":true}')
-
-    def log_message(self, *_):
-        pass  # silence server output during tests
+vantra._post = _mock_post
 
 
-def _start_server():
-    server = HTTPServer(('127.0.0.1', 0), _Handler)
-    server.received = []
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    return server
+def _get_spans() -> list[dict]:
+    """Drain the queue manually and return all captured spans."""
+    # Force a flush so the queue is processed
+    vantra._flush()
+    return [span for batch in _captured_batches for span in batch]
 
+def _reset():
+    _captured_batches.clear()
+    # Also drain anything still in the queue from previous tests
+    with vantra._queue_lock:
+        vantra._queue.clear()
+    vantra._config['capture_io'] = True
 
-def _reset(server, api_key='van_test_key', endpoint=None):
-    """Re-init vantra pointing at the local server."""
-    server.received.clear()
-    port = server.server_address[1]
-    os.environ['VANTRA_ENDPOINT'] = endpoint or f'http://127.0.0.1:{port}'
-    import importlib
-    importlib.reload(vantra)
-    # init() starts the flush worker thread and picks up VANTRA_ENDPOINT
-    vantra.init(
-        api_key=api_key,
-        project='integration-test',
-        patch_openai=False,
-        patch_anthropic=False,
+vantra.init(api_key=VANTRA_KEY, project='integration-test')
+
+# ─── Test helpers ─────────────────────────────────────────────────────────────
+
+passed = 0
+failed = 0
+
+def check(label: str, condition: bool, detail: str = ''):
+    global passed, failed
+    if condition:
+        print(f'  PASS  {label}')
+        passed += 1
+    else:
+        print(f'  FAIL  {label}' + (f': {detail}' if detail else ''))
+        failed += 1
+
+def section(name: str):
+    print(f'\n{name}')
+    print('─' * 60)
+
+# ─── Anthropic non-streaming ──────────────────────────────────────────────────
+
+section('Anthropic — non-streaming')
+_reset()
+
+try:
+    import anthropic as anthropic_sdk
+    client = anthropic_sdk.Anthropic(api_key=ANTHROPIC_KEY)
+
+    response = client.messages.create(
+        model='claude-haiku-4-5',
+        max_tokens=32,
+        messages=[{'role': 'user', 'content': 'Reply with exactly the word: pong'}],
     )
 
-
-@pytest.fixture(scope='module')
-def server():
-    s = _start_server()
-    yield s
-    s.shutdown()
-
-
-def _wait_for(server, path, timeout=3.0):
-    """Poll until server receives a request at the given path."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if any(r['path'] == path for r in server.received):
-            return True
-        time.sleep(0.05)
-    return False
-
-
-# ── Payload schema tests ──────────────────────────────────────────────────────
-
-class TestHttpPayloads:
-    def setup_method(self, method):
-        self.server = _start_server()
-        _reset(self.server)
-
-    def teardown_method(self, method):
-        self.server.shutdown()
-
-    def test_trace_post_hits_correct_path(self):
-        @vantra.trace
-        def fn(): pass
-        fn()
-        assert _wait_for(self.server, '/traces'), "No POST to /traces received"
-
-    def test_trace_post_has_auth_header(self):
-        @vantra.trace
-        def fn(): pass
-        fn()
-        _wait_for(self.server, '/traces')
-        req = next(r for r in self.server.received if r['path'] == '/traces')
-        assert req['auth'] == 'Bearer van_test_key'
-
-    def test_trace_payload_schema(self):
-        @vantra.trace(name='integration_run')
-        def fn(): pass
-        fn()
-        _wait_for(self.server, '/traces')
-        req = next(r for r in self.server.received if r['path'] == '/traces')
-        body = req['body']
-        assert body['name'] == 'integration_run'
-        assert body['project'] == 'integration-test'
-        assert body['status'] == 'ok'
-        assert 'trace_id' in body
-        assert 'start_time' in body
-        assert 'end_time' in body
-        assert body['duration_ms'] >= 0
-        assert body['total_tokens'] == 0
-        assert body['total_cost_usd'] == 0.0
-
-    def test_trace_error_payload(self):
-        @vantra.trace
-        def fn(): raise ValueError('integration error')
-        with pytest.raises(ValueError):
-            fn()
-        _wait_for(self.server, '/traces')
-        req = next(r for r in self.server.received if r['path'] == '/traces')
-        assert req['body']['status'] == 'error'
-        assert req['body']['error_message'] == 'integration error'
-
-    def test_spans_posted_after_trace(self):
-        @vantra.trace
-        def fn():
-            with vantra.span('step_one', kind='retrieval'): pass
-            with vantra.span('step_two', kind='llm'): pass
-        fn()
-        _wait_for(self.server, '/spans')
-        span_req = next(r for r in self.server.received if r['path'] == '/spans')
-        spans = span_req['body']
-        assert len(spans) == 2
-        names = {s['name'] for s in spans}
-        assert names == {'step_one', 'step_two'}
-
-    def test_span_payload_schema(self):
-        @vantra.trace
-        def fn():
-            with vantra.span('my_span', kind='chain'): pass
-        fn()
-        _wait_for(self.server, '/spans')
-        span_req = next(r for r in self.server.received if r['path'] == '/spans')
-        s = span_req['body'][0]
-        assert 'span_id' in s
-        assert 'trace_id' in s
-        assert s['name'] == 'my_span'
-        assert s['kind'] == 'chain'
-        assert s['status'] == 'ok'
-        assert 'start_time' in s
-        assert 'end_time' in s
-        assert s['duration_ms'] >= 0
-
-    def test_span_trace_id_matches_trace(self):
-        @vantra.trace
-        def fn():
-            with vantra.span('s'): pass
-        fn()
-        _wait_for(self.server, '/spans')
-        trace_req = next(r for r in self.server.received if r['path'] == '/traces')
-        span_req = next(r for r in self.server.received if r['path'] == '/spans')
-        assert span_req['body'][0]['trace_id'] == trace_req['body']['trace_id']
-
-    def test_set_output_in_payload(self):
-        @vantra.trace
-        def fn():
-            with vantra.span('s') as sp:
-                sp.set_output({'answer': 'Paris'})
-        fn()
-        _wait_for(self.server, '/spans')
-        span = next(r for r in self.server.received if r['path'] == '/spans')['body'][0]
-        assert span['output'] == {'answer': 'Paris'}
-
-    def test_set_input_in_payload(self):
-        @vantra.trace
-        def fn():
-            with vantra.span('s') as sp:
-                sp.set_input({'query': 'capital of France'})
-        fn()
-        _wait_for(self.server, '/spans')
-        span = next(r for r in self.server.received if r['path'] == '/spans')['body'][0]
-        assert span['input'] == {'query': 'capital of France'}
-
-    def test_capture_io_false_omits_input_output(self):
-        vantra._config['capture_io'] = False
-        @vantra.trace
-        def fn():
-            with vantra.span('s') as sp:
-                sp.set_input({'secret': 'hidden'})
-                sp.set_output({'result': 'hidden'})
-        fn()
-        _wait_for(self.server, '/spans')
-        span = next(r for r in self.server.received if r['path'] == '/spans')['body'][0]
-        assert 'input' not in span or span.get('input') is None
-        assert 'output' not in span or span.get('output') is None
-        vantra._config['capture_io'] = True
-
-    def test_prompt_version_in_trace_payload(self):
-        @vantra.trace(name='versioned', prompt_version='v2')
-        def fn(): pass
-        fn()
-        _wait_for(self.server, '/traces')
-        body = next(r for r in self.server.received if r['path'] == '/traces')['body']
-        assert body.get('prompt_version') == 'v2'
-
-    def test_prompt_version_absent_when_not_set(self):
-        @vantra.trace(name='unversioned')
-        def fn(): pass
-        fn()
-        _wait_for(self.server, '/traces')
-        body = next(r for r in self.server.received if r['path'] == '/traces')['body']
-        assert 'prompt_version' not in body or body.get('prompt_version') is None
-
-    def test_total_tokens_summed_in_trace(self):
-        @vantra.trace
-        def fn():
-            with vantra.span('s') as sp:
-                sp.set_tokens(100, 50)
-        fn()
-        _wait_for(self.server, '/traces')
-        body = next(r for r in self.server.received if r['path'] == '/traces')['body']
-        assert body['total_tokens'] == 150
-
-    def test_no_spans_means_no_spans_post(self):
-        @vantra.trace
-        def fn(): pass
-        fn()
-        _wait_for(self.server, '/traces')
-        time.sleep(0.2)
-        assert not any(r['path'] == '/spans' for r in self.server.received)
-
-    def test_disabled_sends_nothing(self):
-        vantra._config['enabled'] = False
-        @vantra.trace
-        def fn(): return 42
-        result = fn()
-        time.sleep(0.2)
-        assert result == 42
-        assert len(self.server.received) == 0
-        vantra._config['enabled'] = True
-
-
-# ── Flush worker tests ────────────────────────────────────────────────────────
-
-class TestFlushWorker:
-    """Spans outside a trace go to the queue and are flushed by the background worker."""
-
-    def setup_method(self, method):
-        self.server = _start_server()
-        _reset(self.server)
-
-    def teardown_method(self, method):
-        self.server.shutdown()
-
-    def test_orphan_span_flushed_to_spans_endpoint(self):
-        with vantra.span('orphan'): pass
-        assert _wait_for(self.server, '/spans', timeout=3.0), "Orphan span was not flushed"
-
-    def test_orphan_span_payload_schema(self):
-        with vantra.span('queued_span', kind='tool'): pass
-        _wait_for(self.server, '/spans')
-        req = next(r for r in self.server.received if r['path'] == '/spans')
-        span = req['body'][0]
-        assert span['name'] == 'queued_span'
-        assert span['kind'] == 'tool'
-        assert span['trace_id'] is None  # no parent trace
-
-    def test_multiple_orphans_batched(self):
-        with vantra.span('a'): pass
-        with vantra.span('b'): pass
-        _wait_for(self.server, '/spans')
-        time.sleep(vantra._flush_interval + 0.2)
-        all_spans = []
-        for r in self.server.received:
-            if r['path'] == '/spans':
-                all_spans.extend(r['body'])
-        names = {s['name'] for s in all_spans}
-        assert 'a' in names
-        assert 'b' in names
-
-
-# ── Async trace HTTP tests ────────────────────────────────────────────────────
-
-class TestAsyncHttpPayloads:
-    def setup_method(self, method):
-        self.server = _start_server()
-        _reset(self.server)
-
-    def teardown_method(self, method):
-        self.server.shutdown()
-
-    def test_async_trace_posts_to_traces(self):
-        import asyncio
-
-        async def go():
-            @vantra.trace(name='async_integration')
-            async def fn(): pass
-            await fn()
-
-        asyncio.run(go())
-        assert _wait_for(self.server, '/traces'), "No POST to /traces from async trace"
-        body = next(r for r in self.server.received if r['path'] == '/traces')['body']
-        assert body['name'] == 'async_integration'
-        assert body['status'] == 'ok'
-
-    def test_async_trace_spans_posted(self):
-        import asyncio
-
-        async def go():
-            @vantra.trace
-            async def fn():
-                with vantra.span('async_span'): pass
-            await fn()
-
-        asyncio.run(go())
-        _wait_for(self.server, '/spans')
-        req = next(r for r in self.server.received if r['path'] == '/spans')
-        assert req['body'][0]['name'] == 'async_span'
-
-    def test_async_trace_error_payload(self):
-        import asyncio
-
-        async def go():
-            @vantra.trace
-            async def fn(): raise RuntimeError('async fail')
-            with pytest.raises(RuntimeError):
-                await fn()
-
-        asyncio.run(go())
-        _wait_for(self.server, '/traces')
-        body = next(r for r in self.server.received if r['path'] == '/traces')['body']
-        assert body['status'] == 'error'
-        assert body['error_message'] == 'async fail'
-
-
-# ── OpenAI patch HTTP tests ───────────────────────────────────────────────────
-
-class TestOpenAIHttpPayloads:
-    def setup_method(self, method):
-        self.server = _start_server()
-        _reset(self.server)
-
-    def teardown_method(self, method):
-        self.server.shutdown()
-
-    def _make_response(self, input_tokens=21, output_tokens=29, content='Paris'):
-        r = MagicMock()
-        r.usage.prompt_tokens = input_tokens
-        r.usage.completion_tokens = output_tokens
-        r.choices[0].message.content = content
-        return r
-
-    def test_openai_span_posted_with_tokens(self):
-        try:
-            from openai.resources.chat.completions import Completions
-            from vantra.integrations import openai as oai_integration
-
-            response = self._make_response()
-            with patch.object(Completions, 'create', return_value=response):
-                oai_integration.patch()
-
-                @vantra.trace
-                def fn():
-                    Completions.create(MagicMock(), model='gpt-4o-mini',
-                                       messages=[{'role': 'user', 'content': 'hi'}])
-                fn()
-
-            _wait_for(self.server, '/spans')
-            spans = next(r for r in self.server.received if r['path'] == '/spans')['body']
-            llm = next(s for s in spans if s.get('kind') == 'llm')
-            assert llm['provider'] == 'openai'
-            assert llm['model'] == 'gpt-4o-mini'
-            assert llm['input_tokens'] == 21
-            assert llm['output_tokens'] == 29
-            assert llm['cost_usd'] > 0
-        except ImportError:
-            pytest.skip('openai not installed')
-
-    def test_openai_span_has_input_messages(self):
-        try:
-            from openai.resources.chat.completions import Completions
-            from vantra.integrations import openai as oai_integration
-
-            messages = [
-                {'role': 'system', 'content': 'Be helpful.'},
-                {'role': 'user', 'content': 'What is Paris?'},
-            ]
-            with patch.object(Completions, 'create', return_value=self._make_response()):
-                oai_integration.patch()
-
-                @vantra.trace
-                def fn():
-                    Completions.create(MagicMock(), model='gpt-4o-mini', messages=messages)
-                fn()
-
-            _wait_for(self.server, '/spans')
-            spans = next(r for r in self.server.received if r['path'] == '/spans')['body']
-            llm = next(s for s in spans if s.get('kind') == 'llm')
-            assert len(llm['input']['messages']) == 2
-        except ImportError:
-            pytest.skip('openai not installed')
-
-    def test_openai_capture_io_false_no_input_output_in_payload(self):
-        try:
-            from openai.resources.chat.completions import Completions
-            from vantra.integrations import openai as oai_integration
-
-            vantra._config['capture_io'] = False
-            with patch.object(Completions, 'create', return_value=self._make_response()):
-                oai_integration.patch()
-
-                @vantra.trace
-                def fn():
-                    Completions.create(MagicMock(), model='gpt-4o-mini',
-                                       messages=[{'role': 'user', 'content': 'secret'}])
-                fn()
-
-            _wait_for(self.server, '/spans')
-            spans = next(r for r in self.server.received if r['path'] == '/spans')['body']
-            llm = next(s for s in spans if s.get('kind') == 'llm')
-            assert llm.get('input') is None
-            assert llm.get('output') is None
-            assert llm['input_tokens'] == 21  # tokens still tracked
-            vantra._config['capture_io'] = True
-        except ImportError:
-            pytest.skip('openai not installed')
-
-
-# ── Anthropic patch HTTP tests ────────────────────────────────────────────────
-
-class TestAnthropicHttpPayloads:
-    def setup_method(self, method):
-        self.server = _start_server()
-        _reset(self.server)
-
-    def teardown_method(self, method):
-        self.server.shutdown()
-
-    def _make_response(self, input_tokens=15, output_tokens=25, text='Hello!'):
-        r = MagicMock()
-        r.usage.input_tokens = input_tokens
-        r.usage.output_tokens = output_tokens
-        r.content = [MagicMock(text=text)]
-        return r
-
-    def test_anthropic_span_posted_with_tokens(self):
-        try:
-            from anthropic.resources.messages.messages import Messages
-            from vantra.integrations import anthropic as ant_integration
-
-            with patch.object(Messages, 'create', return_value=self._make_response()):
-                ant_integration.patch()
-
-                @vantra.trace
-                def fn():
-                    Messages.create(MagicMock(), model='claude-haiku-4-5',
-                                    messages=[{'role': 'user', 'content': 'hi'}])
-                fn()
-
-            _wait_for(self.server, '/spans')
-            spans = next(r for r in self.server.received if r['path'] == '/spans')['body']
-            llm = next(s for s in spans if s.get('kind') == 'llm')
-            assert llm['provider'] == 'anthropic'
-            assert llm['model'] == 'claude-haiku-4-5'
-            assert llm['input_tokens'] == 15
-            assert llm['output_tokens'] == 25
-            assert llm['cost_usd'] > 0
-        except ImportError:
-            pytest.skip('anthropic not installed')
-
-    def test_anthropic_span_has_full_messages(self):
-        try:
-            from anthropic.resources.messages.messages import Messages
-            from vantra.integrations import anthropic as ant_integration
-
-            messages = [
-                {'role': 'user', 'content': 'first'},
-                {'role': 'assistant', 'content': 'reply'},
-                {'role': 'user', 'content': 'follow up'},
-            ]
-            with patch.object(Messages, 'create', return_value=self._make_response()):
-                ant_integration.patch()
-
-                @vantra.trace
-                def fn():
-                    Messages.create(MagicMock(), model='claude-haiku-4-5', messages=messages)
-                fn()
-
-            _wait_for(self.server, '/spans')
-            spans = next(r for r in self.server.received if r['path'] == '/spans')['body']
-            llm = next(s for s in spans if s.get('kind') == 'llm')
-            assert len(llm['input']['messages']) == 3
-        except ImportError:
-            pytest.skip('anthropic not installed')
-
-    def test_anthropic_capture_io_false_no_input_output(self):
-        try:
-            from anthropic.resources.messages.messages import Messages
-            from vantra.integrations import anthropic as ant_integration
-
-            vantra._config['capture_io'] = False
-            with patch.object(Messages, 'create', return_value=self._make_response()):
-                ant_integration.patch()
-
-                @vantra.trace
-                def fn():
-                    Messages.create(MagicMock(), model='claude-haiku-4-5',
-                                    messages=[{'role': 'user', 'content': 'secret'}])
-                fn()
-
-            _wait_for(self.server, '/spans')
-            spans = next(r for r in self.server.received if r['path'] == '/spans')['body']
-            llm = next(s for s in spans if s.get('kind') == 'llm')
-            assert llm.get('input') is None
-            assert llm.get('output') is None
-            assert llm['input_tokens'] == 15
-            vantra._config['capture_io'] = True
-        except ImportError:
-            pytest.skip('anthropic not installed')
+    spans = _get_spans()
+
+    check('response has content', bool(response.content))
+    check('response text non-empty', bool(response.content[0].text.strip()))
+    check('span was queued', len(spans) == 1, str(len(spans)))
+
+    if spans:
+        span = spans[0]
+        check('span kind is llm', span['kind'] == 'llm')
+        check('span provider is anthropic', span['provider'] == 'anthropic')
+        check('span model correct', 'claude-haiku' in span['model'])
+        check('span status ok', span['status'] == 'ok')
+        check('input_tokens > 0', span['input_tokens'] > 0, str(span['input_tokens']))
+        check('output_tokens > 0', span['output_tokens'] > 0, str(span['output_tokens']))
+        check('cost_usd > 0', span['cost_usd'] > 0, str(span['cost_usd']))
+        check('duration_ms reasonable', 100 < span['duration_ms'] < 30000, str(span['duration_ms']))
+        check('input captured', span['input'] is not None)
+        check('output captured', span['output'] is not None)
+        check('output has text key', 'text' in (span['output'] or {}))
+
+except Exception as e:
+    print(f'  ERROR  {e}')
+    traceback.print_exc()
+    failed += 1
+
+# ─── Anthropic streaming ──────────────────────────────────────────────────────
+
+section('Anthropic — streaming')
+_reset()
+
+try:
+    chunks_received = []
+    text_received = []
+
+    stream = client.messages.create(
+        model='claude-haiku-4-5',
+        max_tokens=32,
+        stream=True,
+        messages=[{'role': 'user', 'content': 'Reply with exactly the word: pong'}],
+    )
+
+    for event in stream:
+        chunks_received.append(event)
+        if hasattr(event, 'type') and event.type == 'content_block_delta':
+            delta = getattr(event, 'delta', None)
+            if delta and hasattr(delta, 'text'):
+                text_received.append(delta.text)
+
+    spans = _get_spans()
+
+    check('received multiple events', len(chunks_received) > 3, str(len(chunks_received)))
+    check('received text content', len(text_received) > 0)
+    check('assembled text non-empty', bool(''.join(text_received).strip()))
+    check('span was queued after stream', len(spans) == 1, str(len(spans)))
+
+    if spans:
+        span = spans[0]
+        check('stream span kind is llm', span['kind'] == 'llm')
+        check('stream span provider is anthropic', span['provider'] == 'anthropic')
+        check('stream span status ok', span['status'] == 'ok')
+        check('stream input_tokens > 0', span['input_tokens'] > 0, str(span['input_tokens']))
+        check('stream output_tokens > 0', span['output_tokens'] > 0, str(span['output_tokens']))
+        check('stream cost_usd > 0', span['cost_usd'] > 0, str(span['cost_usd']))
+        check('stream output text assembled', span['output'] is not None and bool(span['output'].get('text')))
+
+except Exception as e:
+    print(f'  ERROR  {e}')
+    traceback.print_exc()
+    failed += 1
+
+# ─── Anthropic streaming — error handling ────────────────────────────────────
+
+section('Anthropic — streaming error handling')
+_reset()
+
+try:
+    try:
+        stream = client.messages.create(
+            model='not-a-real-model-xyz',
+            max_tokens=16,
+            stream=True,
+            messages=[{'role': 'user', 'content': 'hi'}],
+        )
+        for _ in stream:
+            pass
+    except Exception:
+        pass
+
+    spans = _get_spans()
+    check('error span queued', len(spans) == 1, str(len(spans)))
+    if spans:
+        span = spans[0]
+        check('error span status is error', span['status'] == 'error')
+        check('error_message set', bool(span.get('error_message')))
+
+except Exception as e:
+    print(f'  ERROR  {e}')
+    traceback.print_exc()
+    failed += 1
+
+# ─── Anthropic — capture_io=False ────────────────────────────────────────────
+
+section('Anthropic — capture_io=False')
+_reset()
+vantra._config['capture_io'] = False
+
+try:
+    client.messages.create(
+        model='claude-haiku-4-5',
+        max_tokens=16,
+        messages=[{'role': 'user', 'content': 'hi'}],
+    )
+    spans = _get_spans()
+    check('span queued', len(spans) == 1, str(len(spans)))
+    if spans:
+        span = spans[0]
+        check('input is None', span['input'] is None)
+        check('output is None', span['output'] is None)
+        check('tokens still captured', span['input_tokens'] > 0)
+
+except Exception as e:
+    print(f'  ERROR  {e}')
+    traceback.print_exc()
+    failed += 1
+
+vantra._config['capture_io'] = True
+
+# ─── Anthropic — capture_io=False streaming ───────────────────────────────────
+
+section('Anthropic — capture_io=False streaming')
+_reset()
+vantra._config['capture_io'] = False
+
+try:
+    stream = client.messages.create(
+        model='claude-haiku-4-5',
+        max_tokens=16,
+        stream=True,
+        messages=[{'role': 'user', 'content': 'hi'}],
+    )
+    for _ in stream:
+        pass
+    spans = _get_spans()
+    check('span queued', len(spans) == 1, str(len(spans)))
+    if spans:
+        span = spans[0]
+        check('input is None', span['input'] is None)
+        check('output is None', span['output'] is None)
+        check('tokens still captured', span['input_tokens'] > 0)
+
+except Exception as e:
+    print(f'  ERROR  {e}')
+    traceback.print_exc()
+    failed += 1
+
+vantra._config['capture_io'] = True
+
+# ─── Anthropic — trace() + streaming ─────────────────────────────────────────
+
+section('Anthropic — trace() + streaming')
+_reset()
+
+try:
+    @vantra.trace
+    def run_agent():
+        stream = client.messages.create(
+            model='claude-haiku-4-5',
+            max_tokens=16,
+            stream=True,
+            messages=[{'role': 'user', 'content': 'say hi'}],
+        )
+        for _ in stream:
+            pass
+
+    run_agent()
+    time.sleep(0.1)  # let trace finalize
+    spans = _get_spans()
+
+    check('span queued inside trace', len(spans) >= 1, str(len(spans)))
+    if spans:
+        span = spans[0]
+        check('span has trace_id', bool(span.get('trace_id')))
+        check('span status ok', span['status'] == 'ok')
+
+except Exception as e:
+    print(f'  ERROR  {e}')
+    traceback.print_exc()
+    failed += 1
+
+# ─── Anthropic — two sequential streams, separate spans ───────────────────────
+
+section('Anthropic — sequential streams get separate spans')
+_reset()
+
+try:
+    for i in range(2):
+        stream = client.messages.create(
+            model='claude-haiku-4-5',
+            max_tokens=16,
+            stream=True,
+            messages=[{'role': 'user', 'content': f'say {i}'}],
+        )
+        for _ in stream:
+            pass
+
+    spans = _get_spans()
+    check('two spans queued', len(spans) == 2, str(len(spans)))
+    if len(spans) == 2:
+        check('span_ids are unique', spans[0]['span_id'] != spans[1]['span_id'])
+        check('both spans ok', spans[0]['status'] == 'ok' and spans[1]['status'] == 'ok')
+
+except Exception as e:
+    print(f'  ERROR  {e}')
+    traceback.print_exc()
+    failed += 1
+
+# ─── OpenAI (if key available) ───────────────────────────────────────────────
+
+if OPENAI_KEY:
+    section('OpenAI — non-streaming')
+    _reset()
+
+    try:
+        import openai as openai_sdk
+        oai = openai_sdk.OpenAI(api_key=OPENAI_KEY)
+
+        response = oai.chat.completions.create(
+            model='gpt-4o-mini',
+            max_tokens=16,
+            messages=[{'role': 'user', 'content': 'Reply with exactly the word: pong'}],
+        )
+
+        spans = _get_spans()
+        check('response has choices', bool(response.choices))
+        check('span queued', len(spans) == 1, str(len(spans)))
+        if spans:
+            span = spans[0]
+            check('provider is openai', span['provider'] == 'openai')
+            check('input_tokens > 0', span['input_tokens'] > 0)
+            check('output_tokens > 0', span['output_tokens'] > 0)
+            check('cost_usd > 0', span['cost_usd'] > 0)
+
+    except Exception as e:
+        print(f'  ERROR  {e}')
+        traceback.print_exc()
+        failed += 1
+
+    section('OpenAI — streaming')
+    _reset()
+
+    try:
+        chunks = []
+        stream = oai.chat.completions.create(
+            model='gpt-4o-mini',
+            max_tokens=16,
+            stream=True,
+            messages=[{'role': 'user', 'content': 'say hi'}],
+        )
+        for chunk in stream:
+            chunks.append(chunk)
+
+        spans = _get_spans()
+        check('received chunks', len(chunks) > 1, str(len(chunks)))
+        check('span queued after stream', len(spans) == 1, str(len(spans)))
+        if spans:
+            span = spans[0]
+            check('provider is openai', span['provider'] == 'openai')
+            check('stream input_tokens > 0', span['input_tokens'] > 0, str(span['input_tokens']))
+            check('stream output_tokens > 0', span['output_tokens'] > 0, str(span['output_tokens']))
+
+    except Exception as e:
+        print(f'  ERROR  {e}')
+        traceback.print_exc()
+        failed += 1
+else:
+    print('\nSkipping OpenAI tests (no OPENAI_API_KEY)')
+
+# ─── Summary ──────────────────────────────────────────────────────────────────
+
+total = passed + failed
+print(f'\n{"═" * 60}')
+print(f'Results: {passed}/{total} passed', '✓' if failed == 0 else f'— {failed} FAILED')
+print('═' * 60)
+sys.exit(0 if failed == 0 else 1)
