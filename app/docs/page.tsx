@@ -23,6 +23,7 @@ export default function DocsPage() {
               { href: '#install', label: 'Installation' },
               { href: '#init', label: 'vantra.init()' },
               { href: '#trace', label: '@vantra.trace' },
+              { href: '#prompt-version', label: 'Prompt versioning' },
               { href: '#span', label: 'vantra.span()' },
               { href: '#openai', label: 'OpenAI auto-patch' },
               { href: '#anthropic', label: 'Anthropic auto-patch' },
@@ -124,6 +125,40 @@ async def run_agent_async(message: str) -> str:
             <Callout>
               If the decorated function raises an exception, the trace is automatically marked as
               <span className="text-red-400 font-mono"> error</span> and the error message is captured.
+            </Callout>
+          </section>
+
+          {/* Prompt versioning */}
+          <section id="prompt-version" className="space-y-4">
+            <h2 className="text-2xl font-bold border-b border-white/5 pb-4">Prompt versioning</h2>
+            <p className="text-zinc-400 text-sm leading-relaxed">
+              Pass a <code className="text-[#4DE5FC] bg-white/5 px-1.5 py-0.5 rounded text-xs">prompt_version</code> string to tag traces with the version of your prompt.
+              In the dashboard you can filter by version or use the{' '}
+              <a href="/dashboard/traces/compare" className="text-[#4DE5FC] hover:underline">Compare versions</a>{' '}
+              page to see error rate, latency, and cost side by side across versions.
+            </p>
+            <CodeBlockServer lang="python">{`# Python
+@vantra.trace(name="my-agent", prompt_version="v2")
+def run_agent(message: str) -> str:
+    ...
+
+# Also works on async functions
+@vantra.trace(name="my-agent", prompt_version="v2")
+async def run_agent_async(message: str) -> str:
+    ...`}</CodeBlockServer>
+            <CodeBlockServer lang="typescript">{`// TypeScript
+const runAgent = trace(async function runAgent(message: string) {
+  return agent.run(message)
+}, { promptVersion: 'v2' })`}</CodeBlockServer>
+            <Table
+              headers={['Parameter', 'Type', 'Description']}
+              rows={[
+                ['prompt_version', 'str', 'Any string up to 100 chars — "v1", "v2", a git SHA, etc.'],
+              ]}
+            />
+            <Callout>
+              Versions are stored on the trace and never change after the run. If you need to compare versions, go to{' '}
+              <a href="/dashboard/traces/compare" className="text-[#4DE5FC] hover:underline">Traces → Compare versions</a>.
             </Callout>
           </section>
 

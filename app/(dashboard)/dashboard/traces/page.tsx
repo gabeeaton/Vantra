@@ -43,6 +43,12 @@ export default function TracesPage() {
   const [loading, setLoading] = useState(true)
   const searchParams = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
+
+  // Pick up ?prompt_version= from URL (e.g. deep-linked from compare page)
+  useEffect(() => {
+    const v = searchParams.get('prompt_version')
+    if (v) setPromptVersion(v)
+  }, [])
   const limit = 50
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -87,16 +93,25 @@ export default function TracesPage() {
           <h1 className="text-2xl font-bold text-white">Traces</h1>
           <p className="text-zinc-500 text-sm mt-1">{total.toLocaleString()} total</p>
         </div>
-        <div className="flex gap-2">
-          {['', 'ok', 'error'].map((s) => (
-            <button
-              key={s}
-              onClick={() => { setStatusFilter(s); setOffset(0) }}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${statusFilter === s ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-            >
-              {s === '' ? 'All' : s}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard/traces/compare"
+            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
+            Compare versions
+          </Link>
+          <div className="w-px h-4 bg-zinc-800" />
+          <div className="flex gap-2">
+            {['', 'ok', 'error'].map((s) => (
+              <button
+                key={s}
+                onClick={() => { setStatusFilter(s); setOffset(0) }}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${statusFilter === s ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                {s === '' ? 'All' : s}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
