@@ -38,6 +38,7 @@ export default function TracesPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const dateRangeInvalid = !!(dateFrom && dateTo && dateTo < dateFrom)
   const [promptVersion, setPromptVersion] = useState('')
   const [loading, setLoading] = useState(true)
   const searchParams = useSearchParams()
@@ -64,6 +65,7 @@ export default function TracesPage() {
       })
       return
     }
+    if (dateRangeInvalid) return
     setLoading(true)
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
     if (statusFilter) params.set('status', statusFilter)
@@ -107,28 +109,32 @@ export default function TracesPage() {
           maxLength={200}
           className="flex-1 min-w-[200px] bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors"
         />
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={e => { setDateFrom(e.target.value); setOffset(0) }}
-            className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-zinc-600 transition-colors [color-scheme:dark]"
-          />
-          <span className="text-zinc-600 text-sm">to</span>
-          <input
-            type="date"
-            value={dateTo}
-            min={dateFrom || undefined}
-            onChange={e => { setDateTo(e.target.value); setOffset(0) }}
-            className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-zinc-600 transition-colors [color-scheme:dark]"
-          />
-          {(search || dateFrom || dateTo || promptVersion) && (
-            <button
-              onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); setPromptVersion(''); setOffset(0) }}
-              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors px-2"
-            >
-              Clear
-            </button>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => { setDateFrom(e.target.value); setOffset(0) }}
+              className={`bg-zinc-900 border rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none transition-colors [color-scheme:dark] ${dateRangeInvalid ? 'border-red-500/50' : 'border-zinc-800 focus:border-zinc-600'}`}
+            />
+            <span className="text-zinc-600 text-sm">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => { setDateTo(e.target.value); setOffset(0) }}
+              className={`bg-zinc-900 border rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none transition-colors [color-scheme:dark] ${dateRangeInvalid ? 'border-red-500/50' : 'border-zinc-800 focus:border-zinc-600'}`}
+            />
+            {(search || dateFrom || dateTo || promptVersion) && (
+              <button
+                onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); setPromptVersion(''); setOffset(0) }}
+                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors px-2"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {dateRangeInvalid && (
+            <p className="text-red-400 text-xs pl-1">"From" date must be before "to" date</p>
           )}
         </div>
       </div>
