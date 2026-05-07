@@ -42,3 +42,4 @@ next-env.d.ts
 
 # local test scripts
 test_*.py
+!sdk/python/tests/test_*.py

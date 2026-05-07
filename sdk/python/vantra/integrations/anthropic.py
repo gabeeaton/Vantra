@@ -64,8 +64,8 @@ def _patch_messages_class(Messages):
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "cost_usd": cost,
-                "input": _truncate({"messages": kwargs.get("messages", [])[-1:]}),
-                "output": output_text,
+                "input": _truncate({"messages": kwargs.get("messages", [])}) if _config.get("capture_io", True) else None,
+                "output": output_text if _config.get("capture_io", True) else None,
             })
 
     patched.__vantra__ = True

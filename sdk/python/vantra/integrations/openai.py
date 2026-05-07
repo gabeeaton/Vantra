@@ -40,6 +40,7 @@ def patch():
                     msg = response.choices[0].message
                     output_content = {"content": (msg.content or "")[:1000]}
 
+                capture_io = _config.get("capture_io", True)
                 _queue_span({
                     "span_id": str(uuid.uuid4()),
                     "trace_id": _current_trace_id.get(),
@@ -56,8 +57,8 @@ def patch():
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens,
                     "cost_usd": cost,
-                    "input": _truncate({"messages": messages[-1:]}),
-                    "output": output_content,
+                    "input": _truncate({"messages": messages}) if capture_io else None,
+                    "output": output_content if capture_io else None,
                 })
 
         Completions.create = patched
