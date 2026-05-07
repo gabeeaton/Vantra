@@ -24,6 +24,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const promptVersion = typeof body.prompt_version === 'string'
+    ? body.prompt_version.trim().slice(0, 100)
+    : undefined
+
+  const metadata = { ...(body.metadata || {}) }
+  if (promptVersion) metadata.prompt_version = promptVersion
+
   const { error } = await supabase.from('traces').insert({
     org_id: orgId,
     project_id: projectId,
@@ -35,7 +42,7 @@ export async function POST(req: NextRequest) {
     status: body.status || 'ok',
     total_tokens: body.total_tokens || 0,
     total_cost_usd: body.total_cost_usd || 0,
-    metadata: body.metadata || {},
+    metadata,
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

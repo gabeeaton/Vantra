@@ -85,6 +85,23 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    if (rule.metric === 'daily_budget') {
+      // Sum spend since UTC midnight today
+      const midnight = new Date(now)
+      midnight.setUTCHours(0, 0, 0, 0)
+      const { data } = await db
+        .from('spans')
+        .select('cost_usd')
+        .eq('org_id', rule.org_id)
+        .gte('created_at', midnight.toISOString())
+        .not('cost_usd', 'is', null)
+
+      if (data) {
+        currentValue = data.reduce((sum, s) => sum + (s.cost_usd ?? 0), 0)
+        breached = rule.threshold > 0 && currentValue > rule.threshold
+      }
+    }
+
     if (!breached) continue
 
     // Send email to all recipients
@@ -92,6 +109,8 @@ export async function GET(req: NextRequest) {
       ? `${currentValue}% error rate (threshold: ${rule.threshold}%)`
       : rule.metric === 'p95_latency'
       ? `${currentValue}ms p95 latency (threshold: ${rule.threshold}ms)`
+      : rule.metric === 'daily_budget'
+      ? `$${currentValue.toFixed(4)} spent today (budget: $${rule.threshold})`
       : `$${currentValue.toFixed(4)} cost/hour (threshold: $${rule.threshold})`
 
     if (process.env.RESEND_API_KEY) {

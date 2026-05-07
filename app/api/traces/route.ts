@@ -17,18 +17,26 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const projectId = searchParams.get('project_id')
   const status = searchParams.get('status')
+  const search = (searchParams.get('search') || '').trim().slice(0, 200)
+  const dateFrom = searchParams.get('date_from')
+  const dateTo = searchParams.get('date_to')
+  const promptVersion = (searchParams.get('prompt_version') || '').trim().slice(0, 100)
   const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
   const offset = parseInt(searchParams.get('offset') || '0')
 
   let query = supabase
     .from('traces')
-    .select('id, trace_id, name, status, duration_ms, total_tokens, total_cost_usd, created_at, projects(name)', { count: 'exact' })
+    .select('id, trace_id, name, status, duration_ms, total_tokens, total_cost_usd, created_at, metadata, projects(name)', { count: 'exact' })
     .eq('org_id', userData.org_id)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
   if (projectId) query = query.eq('project_id', projectId)
   if (status) query = query.eq('status', status)
+  if (search) query = query.ilike('name', `%${search}%`)
+  if (dateFrom) query = query.gte('created_at', dateFrom)
+  if (dateTo) query = query.lte('created_at', dateTo)
+  if (promptVersion) query = query.eq('metadata->>prompt_version', promptVersion)
 
   const { data, count, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
