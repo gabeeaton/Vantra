@@ -89,12 +89,12 @@ Not per seat, ever.
 
 ## Competitors
 
-| Tool | Wedge against Vantra |
-|---|---|
-| LangSmith | LangChain-first, $39/seat/month, per-seat pricing |
-| Langfuse | Self-hosted complexity, no alerting |
-| Helicone | Proxy-based (adds latency), OpenAI-only, no traces |
-| Datadog LLM | $3K+/month, enterprise complexity |
+| Tool | Pricing | Alerts | Notes |
+|---|---|---|---|
+| LangSmith | $39/seat/mo | Threshold + anomaly | LangChain-optimized, per-seat |
+| Langfuse | $29/mo (100K units) | Threshold only | No anomaly detection |
+| Helicone | Free / $79/mo | Threshold via evaluators | Proxy-based, adds latency |
+| Datadog LLM | $3K+/mo | Full | Enterprise complexity |
 
 ---
 

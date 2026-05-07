@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (org) {
-    const currentMonth = new Date().toISOString().slice(0, 7) // "2025-05"
+    const currentMonth = new Date().toISOString().slice(0, 7) // "2026-05"
     const isNewMonth = org.spans_month !== currentMonth
 
     if (isNewMonth) {

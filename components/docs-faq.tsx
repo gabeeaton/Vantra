@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 const FAQS = [
   {
@@ -41,26 +41,49 @@ const FAQS = [
   },
 ]
 
+function FaqItem({ item, isOpen, onToggle }: { item: { q: string; a: string }; isOpen: boolean; onToggle: () => void }) {
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const [height, setHeight] = useState(0)
+
+  useEffect(() => {
+    if (bodyRef.current) {
+      setHeight(isOpen ? bodyRef.current.scrollHeight : 0)
+    }
+  }, [isOpen])
+
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/[0.02] transition-colors"
+      >
+        <span className="text-white font-medium text-sm pr-4">{item.q}</span>
+        <span className={`text-zinc-500 text-lg flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-45' : ''}`}>+</span>
+      </button>
+      <div
+        style={{ height }}
+        className="overflow-hidden transition-[height] duration-200 ease-in-out"
+      >
+        <div ref={bodyRef} className="px-5 pb-4">
+          <p className="text-zinc-400 text-sm leading-relaxed">{item.a}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function DocsFaq() {
   const [open, setOpen] = useState<number | null>(null)
 
   return (
-    <div className="divide-y divide-white/5 border border-white/5 rounded-xl overflow-hidden">
+    <div className="divide-y divide-white/5 border border-white/5 rounded-xl overflow-hidden font-[family-name:var(--font-inter)]">
       {FAQS.map((item, i) => (
-        <div key={item.q}>
-          <button
-            onClick={() => setOpen(open === i ? null : i)}
-            className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/[0.02] transition-colors"
-          >
-            <span className="text-white font-medium text-sm pr-4">{item.q}</span>
-            <span className={`text-zinc-500 text-lg flex-shrink-0 transition-transform duration-200 ${open === i ? 'rotate-45' : ''}`}>+</span>
-          </button>
-          {open === i && (
-            <div className="px-5 pb-4">
-              <p className="text-zinc-400 text-sm leading-relaxed">{item.a}</p>
-            </div>
-          )}
-        </div>
+        <FaqItem
+          key={item.q}
+          item={item}
+          isOpen={open === i}
+          onToggle={() => setOpen(open === i ? null : i)}
+        />
       ))}
     </div>
   )

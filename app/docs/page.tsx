@@ -398,7 +398,7 @@ if __name__ == "__main__":
             <Image src="/logo.jpeg" alt="Vantra" width={24} height={24} className="rounded-md" />
             <span className="font-black text-white text-sm tracking-tight">Vantra</span>
           </div>
-          <p className="text-zinc-600 text-sm">© 2025 Vantra</p>
+          <p className="text-zinc-600 text-sm">© 2026 Vantra</p>
         </div>
       </footer>
     </div>
