@@ -53,7 +53,7 @@ export default function DashboardPage() {
       return
     }
     fetch('/api/stats/overview').then((r) => r.json()).then(setStats)
-    fetch('/api/stats/chart').then((r) => r.json()).then((d) => setChart(d.days ?? []))
+    fetch(`/api/stats/chart?tz_offset=${new Date().getTimezoneOffset()}`).then((r) => r.json()).then((d) => setChart(d.days ?? []))
     fetch('/api/traces?limit=8')
       .then((r) => r.json())
       .then((d) => { setTraces(d.traces ?? []); setLoading(false) })
