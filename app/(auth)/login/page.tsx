@@ -34,7 +34,7 @@ export default function LoginPage() {
               <span className="text-[#4DE5FC]">every agent run.</span>
             </h2>
             <p className="text-zinc-500 text-lg leading-relaxed">
-              See every LLM call, tool invocation, and cost — in real time.
+              See every LLM call, tool invocation, and cost in real time.
             </p>
           </div>
 
@@ -43,8 +43,8 @@ export default function LoginPage() {
               { Icon: GitBranch, text: 'Waterfall traces for every agent run' },
               { Icon: DollarSign, text: 'Per-call cost tracking across all models' },
               { Icon: Bell, text: 'Anomaly alerts before users complain' },
-            ].map((item) => (
-              <div key={item.text} className="flex items-center gap-3">
+            ].map((item, i) => (
+              <div key={item.text} className="flex items-center gap-3 animate-fade-up" style={{ animationDelay: `${i * 80}ms` }}>
                 <div className="w-7 h-7 rounded-md bg-[#4DE5FC]/10 border border-[#4DE5FC]/20 flex items-center justify-center flex-shrink-0">
                   <item.Icon size={13} className="text-[#4DE5FC]" strokeWidth={1.75} />
                 </div>
@@ -59,7 +59,7 @@ export default function LoginPage() {
 
       {/* Right panel */}
       <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-sm space-y-6">
+        <div className="w-full max-w-sm space-y-6 animate-fade-up">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2.5">
             <Image src="/logo.jpeg" alt="Vantra" width={32} height={32} className="rounded-lg" />
@@ -76,7 +76,7 @@ export default function LoginPage() {
             <button
               onClick={() => signIn('google')}
               disabled={!!loading}
-              className="w-full flex items-center justify-center gap-3 bg-white text-black font-semibold py-3.5 px-6 rounded-xl hover:bg-zinc-100 active:bg-zinc-200 transition-colors duration-150 cursor-pointer text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 bg-white text-black font-semibold py-3.5 px-6 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all duration-150 cursor-pointer text-sm disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading === 'google' ? (
                 <Loader2 size={18} className="animate-spin" />
@@ -95,7 +95,7 @@ export default function LoginPage() {
             <button
               onClick={() => signIn('github')}
               disabled={!!loading}
-              className="w-full flex items-center justify-center gap-3 bg-zinc-900 text-white font-semibold py-3.5 px-6 rounded-xl border border-white/10 hover:bg-zinc-800 active:bg-zinc-700 transition-colors duration-150 cursor-pointer text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 bg-[#0d0d0d] text-white font-semibold py-3.5 px-6 rounded-xl border border-white/10 hover:bg-white/5 active:scale-[0.98] transition-all duration-150 cursor-pointer text-sm disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading === 'github' ? (
                 <Loader2 size={18} className="animate-spin" />

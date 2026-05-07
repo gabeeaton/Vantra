@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
@@ -61,11 +61,34 @@ export default function DashboardPage() {
     : '0'
 
   const hasData = !loading && traces.length > 0
+  const [showFirstTrace, setShowFirstTrace] = useState(false)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Poll every 5s when no traces yet — stops as soon as first trace arrives
+  useEffect(() => {
+    if (hasData || isDemo || loading) return
+    pollingRef.current = setInterval(() => {
+      fetch('/api/traces?limit=8')
+        .then(r => r.json())
+        .then(d => {
+          const t = d.traces ?? []
+          if (t.length > 0) {
+            setTraces(t)
+            if (!localStorage.getItem('vantra_first_trace_seen')) {
+              setShowFirstTrace(true)
+              localStorage.setItem('vantra_first_trace_seen', '1')
+            }
+            if (pollingRef.current) clearInterval(pollingRef.current)
+          }
+        })
+    }, 5000)
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
+  }, [hasData, isDemo, loading])
 
   return (
     <div className="space-y-8 animate-fade-up">
 
-{/* Getting started banner — hidden once they have traces */}
+      {showFirstTrace && <FirstTraceBanner onDismiss={() => setShowFirstTrace(false)} />}
       {!loading && !hasData && !isDemo && <GettingStarted />}
 
       {/* Page header */}
@@ -249,36 +272,74 @@ function EmptyState() {
   )
 }
 
+function FirstTraceBanner({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="bg-green-400/10 border border-green-400/20 rounded-xl px-5 py-4 flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <span className="text-green-400 text-base">✓</span>
+        <div>
+          <p className="text-green-400 font-semibold text-sm">You're live.</p>
+          <p className="text-zinc-400 text-xs mt-0.5">First trace received. Click any row to see the full waterfall.</p>
+        </div>
+      </div>
+      <button onClick={onDismiss} className="text-zinc-600 hover:text-zinc-400 text-lg leading-none">×</button>
+    </div>
+  )
+}
+
 function GettingStarted() {
+  const [lang, setLang] = useState<'python' | 'typescript'>('python')
+
+  const installCode = lang === 'python' ? 'pip install vantra' : 'npm install vantra-sdk'
+  const initCode = lang === 'python'
+    ? `import vantra\nvantra.init(api_key="van_live_...", project="my-agent")\n\n@vantra.trace\ndef run_agent(...):\n    ...  # your existing code`
+    : `import { init, trace } from 'vantra-sdk'\n\ninit({ apiKey: 'van_live_...', project: 'my-agent' })\n\nconst runAgent = trace(async function runAgent() {\n  // your existing code\n})`
+
   const steps = [
     {
       n: '1',
       title: 'Install the SDK',
-      code: 'pip install vantra',
+      code: installCode,
     },
     {
       n: '2',
-      title: 'Get your API key',
-      body: 'Go to Settings → API Keys and create a key.',
-      link: { href: '/dashboard/settings', label: 'Open Settings →' },
+      title: 'Use your API key',
+      body: 'You received it after setup. Find it again in Settings any time.',
+      link: { href: '/dashboard/settings', label: 'Settings → API Keys' },
     },
     {
       n: '3',
-      title: 'Add 3 lines to your agent',
-      code: `import vantra\nvantra.init(api_key="van_live_...", project="my-agent")\n@vantra.trace\ndef run_agent(...):\n    ...  # your existing code`,
+      title: 'Add to your agent',
+      code: initCode,
     },
     {
       n: '4',
       title: 'Run your agent',
-      body: 'Traces appear here automatically. OpenAI calls are captured with no extra code.',
+      body: 'Traces appear here automatically. OpenAI and Anthropic calls are captured with no extra code.',
     },
   ]
 
   return (
     <div className="bg-[#0d0d0d] border border-white/5 rounded-xl p-6 space-y-5">
-      <div>
-        <h2 className="text-white font-semibold text-sm">Get started in 2 minutes</h2>
-        <p className="text-zinc-600 text-xs mt-0.5">Follow these steps to send your first trace</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-white font-semibold text-sm">Get started in 2 minutes</h2>
+          <p className="text-zinc-600 text-xs mt-0.5">Follow these steps to send your first trace</p>
+        </div>
+        <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+          <button
+            onClick={() => setLang('python')}
+            className={`text-xs px-3 py-1 rounded-md transition-colors ${lang === 'python' ? 'bg-[#4DE5FC]/10 text-[#4DE5FC]' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Python
+          </button>
+          <button
+            onClick={() => setLang('typescript')}
+            className={`text-xs px-3 py-1 rounded-md transition-colors ${lang === 'typescript' ? 'bg-[#4DE5FC]/10 text-[#4DE5FC]' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            TypeScript
+          </button>
+        </div>
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">

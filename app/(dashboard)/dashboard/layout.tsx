@@ -22,14 +22,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     createClient().auth.getUser().then(({ data }) => {
       if (data.user?.email) setEmail(data.user.email)
     })
-    // Eagerly prefetch all dashboard routes so tab switches feel instant
     NAV.forEach(({ href }) => router.prefetch(href))
   }, [])
 
   return (
     <div className="min-h-screen bg-[#080808] flex font-[family-name:var(--font-inter)]">
       {/* Sidebar — desktop only */}
-      <aside className="hidden md:flex w-56 border-r border-white/5 flex-shrink-0 flex-col bg-[#0a0a0a]">
+      <aside className="hidden md:flex w-56 border-r border-white/5 flex-shrink-0 flex-col bg-[#0a0a0a] sticky top-0 h-screen">
         {/* Logo */}
         <div className="p-5 border-b border-white/5">
           <Link href="/" className="flex items-center gap-2.5 group">
@@ -72,14 +71,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* User */}
         <div className="p-3 border-t border-white/5">
-          <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer active:scale-[0.98]">
-            <div className="w-6 h-6 rounded-full bg-[#4DE5FC]/20 border border-[#4DE5FC]/30 flex items-center justify-center flex-shrink-0">
-              <span className="text-[#4DE5FC] text-xs font-bold">
-                {email?.[0]?.toUpperCase() ?? '?'}
-              </span>
+          {email && (
+            <div className="flex items-center gap-2 px-2 py-1.5 mb-1">
+              <div className="w-5 h-5 rounded-full bg-[#4DE5FC]/20 border border-[#4DE5FC]/30 flex items-center justify-center flex-shrink-0">
+                <span className="text-[#4DE5FC] text-[9px] font-bold">{email[0].toUpperCase()}</span>
+              </div>
+              <p className="text-zinc-600 text-xs truncate">{email}</p>
             </div>
-            <p className="text-zinc-500 text-xs truncate">{email}</p>
-          </div>
+          )}
+          <button
+            onClick={async () => {
+              await createClient().auth.signOut()
+              router.push('/')
+            }}
+            className="w-full text-left px-2 py-1.5 text-zinc-600 text-xs hover:text-zinc-400 transition-colors rounded-lg hover:bg-white/[0.03]"
+          >
+            Sign out
+          </button>
         </div>
       </aside>
 
