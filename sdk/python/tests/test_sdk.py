@@ -17,6 +17,7 @@ def _setup():
     vantra._config["api_key"] = "van_live_test"
     vantra._config["project"] = "test-project"
     vantra._config["enabled"] = True
+    vantra._config["capture_io"] = True
 
 def _collected_posts(fn):
     """Run fn, return list of (path, payload) pairs that were posted."""
@@ -1396,5 +1397,597 @@ class TestAnthropicPatching:
             trace = _trace_payload(posts)
             assert trace["total_tokens"] == 300
             assert trace["total_cost_usd"] > 0
+        except ImportError:
+            pytest.skip("anthropic not installed")
+
+
+# ── OpenAI streaming ──────────────────────────────────────────────────────────
+
+def _make_openai_chunk(content=None, input_tokens=None, output_tokens=None):
+    """Build a mock OpenAI streaming chunk."""
+    chunk = MagicMock()
+    chunk.choices = []
+    chunk.usage = None
+
+    if content is not None:
+        delta = MagicMock()
+        delta.content = content
+        choice = MagicMock()
+        choice.delta = delta
+        chunk.choices = [choice]
+
+    if input_tokens is not None or output_tokens is not None:
+        chunk.usage = MagicMock()
+        chunk.usage.prompt_tokens = input_tokens or 0
+        chunk.usage.completion_tokens = output_tokens or 0
+
+    return chunk
+
+
+class TestOpenAIStreaming:
+    def setup_method(self):
+        _setup()
+
+    def _stream(self, chunks):
+        """Helper: patch Completions.create to return an iterator of chunks."""
+        return iter(chunks)
+
+    def test_streaming_span_queued(self):
+        """Consuming a stream produces an LLM span."""
+        try:
+            from openai.resources.chat.completions import Completions
+            from vantra.integrations import openai as oai_integration
+
+            chunks = [
+                _make_openai_chunk(content="Hello"),
+                _make_openai_chunk(content=" world"),
+                _make_openai_chunk(input_tokens=10, output_tokens=5),
+            ]
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Completions, 'create', return_value=self._stream(chunks)):
+                    oai_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        inst = MagicMock()
+                        stream = Completions.create(inst, model="gpt-4o-mini",
+                                                    messages=[{"role": "user", "content": "hi"}],
+                                                    stream=True)
+                        return "".join(
+                            c.choices[0].delta.content
+                            for c in stream
+                            if c.choices and c.choices[0].delta.content
+                        )
+                    fn()
+
+            spans = _span_payloads(posts)
+            llm_span = next((s for s in spans if s.get("kind") == "llm"), None)
+            assert llm_span is not None
+            assert llm_span["provider"] == "openai"
+            assert llm_span["model"] == "gpt-4o-mini"
+        except ImportError:
+            pytest.skip("openai not installed")
+
+    def test_streaming_tokens_captured(self):
+        """Token counts from the final usage chunk are captured."""
+        try:
+            from openai.resources.chat.completions import Completions
+            from vantra.integrations import openai as oai_integration
+
+            chunks = [
+                _make_openai_chunk(content="Hi"),
+                _make_openai_chunk(input_tokens=20, output_tokens=10),
+            ]
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Completions, 'create', return_value=self._stream(chunks)):
+                    oai_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        list(Completions.create(MagicMock(), model="gpt-4o-mini",
+                                                messages=[], stream=True))
+                    fn()
+
+            llm_span = next(s for s in _span_payloads(posts) if s.get("kind") == "llm")
+            assert llm_span["input_tokens"] == 20
+            assert llm_span["output_tokens"] == 10
+        except ImportError:
+            pytest.skip("openai not installed")
+
+    def test_streaming_cost_calculated(self):
+        """Cost is computed from streamed token counts."""
+        try:
+            from openai.resources.chat.completions import Completions
+            from vantra.integrations import openai as oai_integration
+
+            chunks = [
+                _make_openai_chunk(content="Hi"),
+                _make_openai_chunk(input_tokens=20, output_tokens=10),
+            ]
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Completions, 'create', return_value=self._stream(chunks)):
+                    oai_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        list(Completions.create(MagicMock(), model="gpt-4o-mini",
+                                                messages=[], stream=True))
+                    fn()
+
+            llm_span = next(s for s in _span_payloads(posts) if s.get("kind") == "llm")
+            expected = calculate_cost("gpt-4o-mini", 20, 10)
+            assert abs(llm_span["cost_usd"] - expected) < 1e-12
+        except ImportError:
+            pytest.skip("openai not installed")
+
+    def test_streaming_content_captured(self):
+        """Concatenated content chunks stored in span output."""
+        try:
+            from openai.resources.chat.completions import Completions
+            from vantra.integrations import openai as oai_integration
+
+            chunks = [
+                _make_openai_chunk(content="Hello"),
+                _make_openai_chunk(content=" world"),
+                _make_openai_chunk(input_tokens=5, output_tokens=3),
+            ]
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Completions, 'create', return_value=self._stream(chunks)):
+                    oai_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        list(Completions.create(MagicMock(), model="gpt-4o-mini",
+                                                messages=[], stream=True))
+                    fn()
+
+            llm_span = next(s for s in _span_payloads(posts) if s.get("kind") == "llm")
+            assert llm_span["output"]["content"] == "Hello world"
+        except ImportError:
+            pytest.skip("openai not installed")
+
+    def test_streaming_trace_totals_updated(self):
+        """Trace total_tokens and total_cost_usd include streamed span."""
+        try:
+            from openai.resources.chat.completions import Completions
+            from vantra.integrations import openai as oai_integration
+
+            chunks = [
+                _make_openai_chunk(content="Hi"),
+                _make_openai_chunk(input_tokens=20, output_tokens=10),
+            ]
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Completions, 'create', return_value=self._stream(chunks)):
+                    oai_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        list(Completions.create(MagicMock(), model="gpt-4o-mini",
+                                                messages=[], stream=True))
+                    fn()
+
+            trace = _trace_payload(posts)
+            assert trace["total_tokens"] == 30
+            assert trace["total_cost_usd"] > 0
+        except ImportError:
+            pytest.skip("openai not installed")
+
+    def test_streaming_error_mid_stream_captured(self):
+        """An exception raised mid-stream marks the span as error."""
+        try:
+            from openai.resources.chat.completions import Completions
+            from vantra.integrations import openai as oai_integration
+
+            def bad_stream():
+                yield _make_openai_chunk(content="Hi")
+                raise RuntimeError("connection reset")
+
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Completions, 'create', return_value=bad_stream()):
+                    oai_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        with pytest.raises(RuntimeError):
+                            list(Completions.create(MagicMock(), model="gpt-4o-mini",
+                                                    messages=[], stream=True))
+                    fn()
+
+            llm_span = next(s for s in _span_payloads(posts) if s.get("kind") == "llm")
+            assert llm_span["status"] == "error"
+            assert "connection reset" in llm_span["error_message"]
+        except ImportError:
+            pytest.skip("openai not installed")
+
+    def test_streaming_capture_io_false(self):
+        """capture_io=False suppresses input/output on streamed spans."""
+        try:
+            from openai.resources.chat.completions import Completions
+            from vantra.integrations import openai as oai_integration
+
+            vantra._config["capture_io"] = False
+            chunks = [
+                _make_openai_chunk(content="Hi"),
+                _make_openai_chunk(input_tokens=5, output_tokens=3),
+            ]
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Completions, 'create', return_value=iter(chunks)):
+                    oai_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        list(Completions.create(MagicMock(), model="gpt-4o-mini",
+                                                messages=[{"role": "user", "content": "secret"}],
+                                                stream=True))
+                    fn()
+
+            llm_span = next(s for s in _span_payloads(posts) if s.get("kind") == "llm")
+            assert llm_span["input"] is None
+            assert llm_span["output"] is None
+        except ImportError:
+            pytest.skip("openai not installed")
+
+    def test_streaming_stream_options_injected(self):
+        """stream_options include_usage is injected automatically."""
+        try:
+            from openai.resources.chat.completions import Completions
+            from vantra.integrations import openai as oai_integration
+
+            captured_kwargs = {}
+
+            def fake_create(self, *args, **kwargs):
+                captured_kwargs.update(kwargs)
+                return iter([_make_openai_chunk(input_tokens=5, output_tokens=3)])
+
+            posts = []
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Completions, 'create', fake_create):
+                    oai_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        list(Completions.create(MagicMock(), model="gpt-4o-mini",
+                                                messages=[], stream=True))
+                    fn()
+
+            assert captured_kwargs.get("stream_options") == {"include_usage": True}
+        except ImportError:
+            pytest.skip("openai not installed")
+
+    def test_streaming_user_stream_options_not_overridden(self):
+        """If user already set stream_options, don't overwrite it."""
+        try:
+            from openai.resources.chat.completions import Completions
+            from vantra.integrations import openai as oai_integration
+
+            captured_kwargs = {}
+            user_opts = {"include_usage": True, "include_logprobs": True}
+
+            def fake_create(self, *args, **kwargs):
+                captured_kwargs.update(kwargs)
+                return iter([_make_openai_chunk(input_tokens=5, output_tokens=3)])
+
+            posts = []
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Completions, 'create', fake_create):
+                    oai_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        list(Completions.create(MagicMock(), model="gpt-4o-mini",
+                                                messages=[], stream=True,
+                                                stream_options=user_opts))
+                    fn()
+
+            assert captured_kwargs["stream_options"] == user_opts
+        except ImportError:
+            pytest.skip("openai not installed")
+
+    def test_non_streaming_still_works_after_patch(self):
+        """Non-streaming path is unaffected by streaming changes."""
+        try:
+            from openai.resources.chat.completions import Completions
+            from vantra.integrations import openai as oai_integration
+
+            response = MagicMock()
+            response.usage.prompt_tokens = 10
+            response.usage.completion_tokens = 20
+            response.choices[0].message.content = "Paris"
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Completions, 'create', return_value=response):
+                    oai_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        Completions.create(MagicMock(), model="gpt-4o-mini", messages=[])
+                    fn()
+
+            llm_span = next(s for s in _span_payloads(posts) if s.get("kind") == "llm")
+            assert llm_span["input_tokens"] == 10
+            assert llm_span["output_tokens"] == 20
+        except ImportError:
+            pytest.skip("openai not installed")
+
+
+# ── Anthropic streaming ───────────────────────────────────────────────────────
+
+def _make_anthropic_event(event_type, **kwargs):
+    """Build a mock Anthropic streaming event."""
+    event = MagicMock()
+    event.type = event_type
+
+    if event_type == "message_start":
+        event.message = MagicMock()
+        event.message.usage = MagicMock()
+        event.message.usage.input_tokens = kwargs.get("input_tokens", 0)
+
+    elif event_type == "content_block_delta":
+        event.delta = MagicMock()
+        event.delta.type = "text_delta"
+        event.delta.text = kwargs.get("text", "")
+
+    elif event_type == "message_delta":
+        event.usage = MagicMock()
+        event.usage.output_tokens = kwargs.get("output_tokens", 0)
+
+    elif event_type == "message_stop":
+        pass
+
+    return event
+
+
+class TestAnthropicStreaming:
+    def setup_method(self):
+        _setup()
+
+    def test_streaming_span_queued(self):
+        """Consuming an Anthropic stream produces an LLM span."""
+        try:
+            from anthropic.resources.messages.messages import Messages
+            from vantra.integrations import anthropic as ant_integration
+
+            events = [
+                _make_anthropic_event("message_start", input_tokens=15),
+                _make_anthropic_event("content_block_delta", text="Hello"),
+                _make_anthropic_event("message_delta", output_tokens=8),
+                _make_anthropic_event("message_stop"),
+            ]
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Messages, 'create', return_value=iter(events)):
+                    ant_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        list(Messages.create(MagicMock(), model="claude-haiku-4-5",
+                                             messages=[{"role": "user", "content": "hi"}],
+                                             stream=True))
+                    fn()
+
+            llm_span = next((s for s in _span_payloads(posts) if s.get("kind") == "llm"), None)
+            assert llm_span is not None
+            assert llm_span["provider"] == "anthropic"
+        except ImportError:
+            pytest.skip("anthropic not installed")
+
+    def test_streaming_tokens_captured(self):
+        """Input and output tokens read from Anthropic stream events."""
+        try:
+            from anthropic.resources.messages.messages import Messages
+            from vantra.integrations import anthropic as ant_integration
+
+            events = [
+                _make_anthropic_event("message_start", input_tokens=15),
+                _make_anthropic_event("content_block_delta", text="Hi"),
+                _make_anthropic_event("message_delta", output_tokens=8),
+                _make_anthropic_event("message_stop"),
+            ]
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Messages, 'create', return_value=iter(events)):
+                    ant_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        list(Messages.create(MagicMock(), model="claude-haiku-4-5",
+                                             messages=[], stream=True))
+                    fn()
+
+            llm_span = next(s for s in _span_payloads(posts) if s.get("kind") == "llm")
+            assert llm_span["input_tokens"] == 15
+            assert llm_span["output_tokens"] == 8
+        except ImportError:
+            pytest.skip("anthropic not installed")
+
+    def test_streaming_cost_calculated(self):
+        """Cost computed from Anthropic stream token counts."""
+        try:
+            from anthropic.resources.messages.messages import Messages
+            from vantra.integrations import anthropic as ant_integration
+
+            events = [
+                _make_anthropic_event("message_start", input_tokens=15),
+                _make_anthropic_event("message_delta", output_tokens=8),
+                _make_anthropic_event("message_stop"),
+            ]
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Messages, 'create', return_value=iter(events)):
+                    ant_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        list(Messages.create(MagicMock(), model="claude-haiku-4-5",
+                                             messages=[], stream=True))
+                    fn()
+
+            llm_span = next(s for s in _span_payloads(posts) if s.get("kind") == "llm")
+            expected = calculate_cost("claude-haiku-4-5", 15, 8)
+            assert abs(llm_span["cost_usd"] - expected) < 1e-12
+        except ImportError:
+            pytest.skip("anthropic not installed")
+
+    def test_streaming_content_captured(self):
+        """Text chunks concatenated into span output."""
+        try:
+            from anthropic.resources.messages.messages import Messages
+            from vantra.integrations import anthropic as ant_integration
+
+            events = [
+                _make_anthropic_event("message_start", input_tokens=5),
+                _make_anthropic_event("content_block_delta", text="Hello"),
+                _make_anthropic_event("content_block_delta", text=" world"),
+                _make_anthropic_event("message_delta", output_tokens=3),
+                _make_anthropic_event("message_stop"),
+            ]
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Messages, 'create', return_value=iter(events)):
+                    ant_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        list(Messages.create(MagicMock(), model="claude-haiku-4-5",
+                                             messages=[], stream=True))
+                    fn()
+
+            llm_span = next(s for s in _span_payloads(posts) if s.get("kind") == "llm")
+            assert llm_span["output"]["text"] == "Hello world"
+        except ImportError:
+            pytest.skip("anthropic not installed")
+
+    def test_streaming_trace_totals_updated(self):
+        """Trace total_tokens includes Anthropic streamed span."""
+        try:
+            from anthropic.resources.messages.messages import Messages
+            from vantra.integrations import anthropic as ant_integration
+
+            events = [
+                _make_anthropic_event("message_start", input_tokens=15),
+                _make_anthropic_event("message_delta", output_tokens=8),
+                _make_anthropic_event("message_stop"),
+            ]
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Messages, 'create', return_value=iter(events)):
+                    ant_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        list(Messages.create(MagicMock(), model="claude-haiku-4-5",
+                                             messages=[], stream=True))
+                    fn()
+
+            trace = _trace_payload(posts)
+            assert trace["total_tokens"] == 23
+            assert trace["total_cost_usd"] > 0
+        except ImportError:
+            pytest.skip("anthropic not installed")
+
+    def test_streaming_error_mid_stream_captured(self):
+        """Exception mid-stream marks span as error."""
+        try:
+            from anthropic.resources.messages.messages import Messages
+            from vantra.integrations import anthropic as ant_integration
+
+            def bad_stream():
+                yield _make_anthropic_event("message_start", input_tokens=5)
+                raise RuntimeError("stream dropped")
+
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Messages, 'create', return_value=bad_stream()):
+                    ant_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        with pytest.raises(RuntimeError):
+                            list(Messages.create(MagicMock(), model="claude-haiku-4-5",
+                                                 messages=[], stream=True))
+                    fn()
+
+            llm_span = next(s for s in _span_payloads(posts) if s.get("kind") == "llm")
+            assert llm_span["status"] == "error"
+            assert "stream dropped" in llm_span["error_message"]
+        except ImportError:
+            pytest.skip("anthropic not installed")
+
+    def test_streaming_capture_io_false(self):
+        """capture_io=False suppresses input/output on Anthropic streamed spans."""
+        try:
+            from anthropic.resources.messages.messages import Messages
+            from vantra.integrations import anthropic as ant_integration
+
+            vantra._config["capture_io"] = False
+            events = [
+                _make_anthropic_event("message_start", input_tokens=5),
+                _make_anthropic_event("content_block_delta", text="secret"),
+                _make_anthropic_event("message_delta", output_tokens=3),
+                _make_anthropic_event("message_stop"),
+            ]
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Messages, 'create', return_value=iter(events)):
+                    ant_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        list(Messages.create(MagicMock(), model="claude-haiku-4-5",
+                                             messages=[], stream=True))
+                    fn()
+
+            llm_span = next(s for s in _span_payloads(posts) if s.get("kind") == "llm")
+            assert llm_span["input"] is None
+            assert llm_span["output"] is None
+        except ImportError:
+            pytest.skip("anthropic not installed")
+
+    def test_non_streaming_still_works_after_patch(self):
+        """Non-streaming Anthropic path unaffected."""
+        try:
+            from anthropic.resources.messages.messages import Messages
+            from vantra.integrations import anthropic as ant_integration
+
+            response = MagicMock()
+            response.usage.input_tokens = 10
+            response.usage.output_tokens = 20
+            response.content = [MagicMock(text="Paris")]
+            posts = []
+
+            with patch.object(vantra, '_post', side_effect=lambda p, d: posts.append((p, d))):
+                with patch.object(Messages, 'create', return_value=response):
+                    ant_integration.patch()
+
+                    @vantra.trace
+                    def fn():
+                        Messages.create(MagicMock(), model="claude-haiku-4-5", messages=[])
+                    fn()
+
+            llm_span = next(s for s in _span_payloads(posts) if s.get("kind") == "llm")
+            assert llm_span["input_tokens"] == 10
+            assert llm_span["output_tokens"] == 20
         except ImportError:
             pytest.skip("anthropic not installed")
