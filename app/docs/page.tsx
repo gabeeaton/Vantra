@@ -93,6 +93,7 @@ npm install vantra-sdk`}</CodeBlockServer>
             <CodeBlockServer lang="python">{`vantra.init(
     api_key="van_live_...",   # required
     project="my-agent",       # optional — groups traces in dashboard
+    capture_io=False,         # optional — suppress prompt/response capture
 )`}</CodeBlockServer>
 
             <Table
@@ -100,6 +101,7 @@ npm install vantra-sdk`}</CodeBlockServer>
               rows={[
                 ['api_key', 'str', 'Yes', 'Your Vantra API key from Settings'],
                 ['project', 'str', 'No', 'Project name shown in the dashboard'],
+                ['capture_io', 'bool', 'No', 'Set to False to suppress prompt and response capture. Useful for sensitive workloads. Default: True'],
               ]}
             />
           </section>
@@ -173,11 +175,13 @@ const runAgent = trace(async function runAgent(message: string) {
 def run_agent(message: str) -> str:
     with vantra.span("search_knowledge", kind="tool") as span:
         results = search(message)
+        span.set_input({"query": message})
         span.set_output({"results": results})
 
     with vantra.span("generate_response", kind="llm") as span:
         response = llm.chat(message, context=results)
         span.set_output({"response": response})
+        span.set_tokens(input_tokens=320, output_tokens=180)
 
     return response`}</CodeBlockServer>
 
@@ -186,6 +190,16 @@ def run_agent(message: str) -> str:
               rows={[
                 ['name', 'str', 'Span name shown in the waterfall'],
                 ['kind', 'str', '"llm" | "tool" | "retrieval" | "chain" | "agent"'],
+              ]}
+            />
+
+            <p className="text-zinc-400 text-sm leading-relaxed mt-2">Methods available on the span context object:</p>
+            <Table
+              headers={['Method', 'Description']}
+              rows={[
+                ['span.set_input(data)', 'Log the input to this span (any JSON-serializable value, truncated at 2KB)'],
+                ['span.set_output(data)', 'Log the output from this span'],
+                ['span.set_tokens(input_tokens, output_tokens)', 'Manually record token counts — useful when using a model not auto-patched by Vantra'],
               ]}
             />
           </section>
