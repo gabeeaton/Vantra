@@ -11,6 +11,18 @@ export default function ChangelogPage() {
           <div className="border-l-2 border-[#4DE5FC]/30 pl-6 relative">
             <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-[#4DE5FC]" />
             <div className="text-xs text-zinc-500 mb-2">May 7, 2026</div>
+            <h2 className="text-white font-semibold text-base mb-3">Dashboard: p95 latency, rate limits, cost forecast, truncation detection</h2>
+            <ul className="space-y-1.5 text-zinc-400 text-sm">
+              <li>• Overview now shows p95 latency (with avg as secondary) instead of avg alone</li>
+              <li>• Rate-limited spans (429s) surfaced in the error rate card</li>
+              <li>• Monthly cost projection shown in the cost card, based on 7-day trailing average</li>
+              <li>• Truncated response detection in trace waterfall: flags LLM spans where output hit the token limit</li>
+            </ul>
+          </div>
+
+          <div className="border-l-2 border-zinc-800 pl-6 relative">
+            <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-zinc-600" />
+            <div className="text-xs text-zinc-500 mb-2">May 7, 2026</div>
             <h2 className="text-white font-semibold text-base mb-3">Pricing update</h2>
             <ul className="space-y-1.5 text-zinc-400 text-sm">
               <li>• New Indie plan: $9/mo, 500K spans/month, 60-day retention</li>

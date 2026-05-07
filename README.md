@@ -223,10 +223,10 @@ Every push to `main` auto-deploys via Vercel.
 - [x] Streaming support (OpenAI + Anthropic, Python + TypeScript)
 
 **Next up**
-- [ ] p95/p99 latency charts on the overview page
-- [ ] Truncated response detection — flag spans where output_tokens = max_tokens
-- [ ] Cost forecasting — project monthly spend from current trajectory
-- [ ] Rate limit visibility — surface 429s separately, show which models/endpoints are hitting limits
+- [x] p95/p99 latency on the overview page (replaces avg)
+- [x] Truncated response detection — flag spans where output_tokens >= max_tokens
+- [x] Cost forecasting — monthly projection from 7-day trailing average, shown in cost card
+- [x] Rate limit visibility — 429s surfaced in the error rate card
 - [ ] Simple evals — thumbs up/down on traces, alert when rolling score drops
 - [ ] Agent loop detection — alert when a single trace exceeds N spans
 
