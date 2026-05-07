@@ -281,9 +281,6 @@ export default function LandingPage() {
                 <div className="flex items-baseline gap-2 mb-1">
                   <span className="text-4xl font-black text-white">{plan.price}</span>
                   <span className="text-zinc-500 text-sm">/{plan.period}</span>
-                  {'badge' in plan && plan.badge && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#4DE5FC] bg-[#4DE5FC]/10 px-1.5 py-0.5 rounded">{plan.badge}</span>
-                  )}
                 </div>
                 <ul className="mt-6 space-y-3 mb-8">
                   {plan.features.map((f) => (
