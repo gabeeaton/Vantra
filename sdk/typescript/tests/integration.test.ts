@@ -281,7 +281,30 @@ describe('Anthropic streaming', () => {
     const spans = getAllSpans().filter(s => s.provider === 'anthropic')
     expect(spans.length).toBe(2)
     expect(spans[0].span_id).not.toBe(spans[1].span_id)
+    expect(spans[0].status).toBe('ok')
+    expect(spans[1].status).toBe('ok')
   }, 60000)
+
+  test('error span queued on bad model with stream=true', async () => {
+    try {
+      const stream = await client.messages.create({
+        model: 'not-a-real-model-xyz',
+        max_tokens: 16,
+        stream: true,
+        messages: [{ role: 'user', content: 'hi' }],
+      })
+      for await (const _ of stream) { /* drain */ }
+    } catch { /* expected */ }
+
+    await waitForFlush()
+
+    const span = getLastSpan()
+    expect(span).not.toBeNull()
+    expect(span!.status).toBe('error')
+    expect(span!.error_message).toBeTruthy()
+    expect(span!.input_tokens).toBe(0)
+    expect(span!.cost_usd).toBe(0)
+  }, 30000)
 })
 
 // ─── OpenAI (if key available) ────────────────────────────────────────────────
@@ -292,11 +315,11 @@ describeOpenAI('OpenAI non-streaming', () => {
   const OpenAI = require('openai')
   const client = new OpenAI.default({ apiKey: OPENAI_KEY })
 
-  test('response passes through, span queued', async () => {
+  test('response passes through, span queued with correct fields', async () => {
     const response = await client.chat.completions.create({
       model: 'gpt-4o-mini',
-      max_tokens: 16,
-      messages: [{ role: 'user', content: 'say hi' }],
+      max_tokens: 32,
+      messages: [{ role: 'user', content: 'Reply with exactly the word: pong' }],
     })
 
     await waitForFlush()
@@ -304,11 +327,57 @@ describeOpenAI('OpenAI non-streaming', () => {
     expect(response.choices[0].message.content).toBeTruthy()
 
     const span = getLastSpan()
+    expect(span).not.toBeNull()
+    expect(span!.kind).toBe('llm')
     expect(span!.provider).toBe('openai')
+    expect(String(span!.model)).toContain('gpt-4o-mini')
     expect(span!.status).toBe('ok')
     expect(span!.input_tokens as number).toBeGreaterThan(0)
     expect(span!.output_tokens as number).toBeGreaterThan(0)
     expect(span!.cost_usd as number).toBeGreaterThan(0)
+    expect(span!.duration_ms as number).toBeGreaterThan(0)
+    expect(span!.input).not.toBeNull()
+    expect(span!.output).not.toBeNull()
+    expect((span!.output as Record<string, unknown>).content).toBeTruthy()
+  }, 30000)
+
+  test('error span queued on bad model', async () => {
+    await expect(
+      client.chat.completions.create({
+        model: 'not-a-real-model',
+        max_tokens: 16,
+        messages: [{ role: 'user', content: 'hi' }],
+      })
+    ).rejects.toThrow()
+
+    await waitForFlush()
+
+    const span = getLastSpan()
+    expect(span).not.toBeNull()
+    expect(span!.status).toBe('error')
+    expect(span!.error_message).toBeTruthy()
+    expect(span!.input_tokens).toBe(0)
+  }, 30000)
+
+  test('captureIo=false suppresses input/output but keeps tokens', async () => {
+    vantra.init({ apiKey: VANTRA_KEY, project: 'integration-test', captureIo: false })
+    resetCapture()
+
+    await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 16,
+      messages: [{ role: 'user', content: 'hi' }],
+    })
+
+    await waitForFlush()
+
+    const span = getLastSpan()
+    expect(span).not.toBeNull()
+    expect(span!.input).toBeUndefined()
+    expect(span!.output).toBeUndefined()
+    expect(span!.input_tokens as number).toBeGreaterThan(0)
+
+    vantra.init({ apiKey: VANTRA_KEY, project: 'integration-test', captureIo: true })
   }, 30000)
 })
 
@@ -357,5 +426,88 @@ describeOpenAI('OpenAI streaming', () => {
 
     const span = getLastSpan()
     expect(span!.status).toBe('ok')
+  }, 30000)
+
+  test('captureIo=false suppresses input/output in streaming', async () => {
+    vantra.init({ apiKey: VANTRA_KEY, project: 'integration-test', captureIo: false })
+    resetCapture()
+
+    const stream = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 16,
+      stream: true,
+      messages: [{ role: 'user', content: 'hi' }],
+    })
+
+    for await (const _ of stream) { /* drain */ }
+    await waitForFlush()
+
+    const span = getLastSpan()
+    expect(span).not.toBeNull()
+    expect(span!.input).toBeUndefined()
+    expect(span!.output).toBeUndefined()
+    expect(span!.input_tokens as number).toBeGreaterThan(0)
+
+    vantra.init({ apiKey: VANTRA_KEY, project: 'integration-test', captureIo: true })
+  }, 30000)
+
+  test('two sequential streams get separate spans with unique IDs', async () => {
+    for (let i = 0; i < 2; i++) {
+      const stream = await client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        max_tokens: 16,
+        stream: true,
+        messages: [{ role: 'user', content: `say ${i}` }],
+      })
+      for await (const _ of stream) { /* drain */ }
+    }
+
+    await waitForFlush()
+
+    const spans = getAllSpans().filter(s => s.provider === 'openai')
+    expect(spans.length).toBe(2)
+    expect(spans[0].span_id).not.toBe(spans[1].span_id)
+    expect(spans[0].status).toBe('ok')
+    expect(spans[1].status).toBe('ok')
+  }, 60000)
+
+  test('error span queued on bad model with stream=true', async () => {
+    try {
+      const stream = await client.chat.completions.create({
+        model: 'not-a-real-model-xyz',
+        max_tokens: 16,
+        stream: true,
+        messages: [{ role: 'user', content: 'hi' }],
+      })
+      for await (const _ of stream) { /* drain */ }
+    } catch { /* expected */ }
+
+    await waitForFlush()
+
+    const span = getLastSpan()
+    expect(span).not.toBeNull()
+    expect(span!.status).toBe('error')
+    expect(span!.error_message).toBeTruthy()
+    expect(span!.input_tokens).toBe(0)
+  }, 30000)
+
+  test('user-provided stream_options not overwritten', async () => {
+    // When user already sets stream_options, we must not clobber it.
+    // We verify by checking that the stream still works and a span is queued —
+    // if we corrupted stream_options the request would fail.
+    const stream = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 16,
+      stream: true,
+      stream_options: { include_usage: true },
+      messages: [{ role: 'user', content: 'hi' }],
+    })
+
+    for await (const _ of stream) { /* drain */ }
+    await waitForFlush()
+
+    const span = getLastSpan()
+    expect(span!.status).toBe('ok')
+    expect(span!.input_tokens as number).toBeGreaterThan(0)
   }, 30000)
 })
