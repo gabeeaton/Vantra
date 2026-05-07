@@ -22,6 +22,7 @@ const METRICS = [
   { value: 'error_rate', label: 'Error rate', unit: '%', description: 'Alert when error % exceeds threshold' },
   { value: 'p95_latency', label: 'P95 latency', unit: 'ms', description: 'Alert when p95 latency exceeds threshold' },
   { value: 'cost_per_hour', label: 'Hourly cost', unit: '$', description: 'Alert when hourly AI cost exceeds threshold' },
+  { value: 'daily_budget', label: 'Daily budget', unit: '$', description: 'Alert when total spend today exceeds this amount (resets at midnight UTC)' },
 ]
 
 export default function AlertsPage() {
@@ -131,7 +132,7 @@ export default function AlertsPage() {
               <Input
                 value={form.threshold}
                 onChange={e => setForm({ ...form, threshold: e.target.value })}
-                placeholder={form.metric === 'error_rate' ? '10' : form.metric === 'p95_latency' ? '5000' : '1.00'}
+                placeholder={form.metric === 'error_rate' ? '10' : form.metric === 'p95_latency' ? '5000' : form.metric === 'daily_budget' ? '5.00' : '1.00'}
                 type="number"
                 className="bg-black border-white/10 text-white placeholder:text-zinc-700 focus-visible:ring-[#4DE5FC]/30"
               />
@@ -229,7 +230,9 @@ export default function AlertsPage() {
                     <div>
                       <p className="text-white text-sm font-medium">{alert.name}</p>
                       <p className="text-zinc-600 text-xs mt-0.5">
-                        {metric?.label} &gt; {alert.threshold}{metric?.unit} · every {alert.window_minutes}min · {alert.email_recipients?.[0]}
+                        {metric?.label} &gt; {alert.threshold}{metric?.unit}
+                        {alert.metric !== 'daily_budget' && ` · every ${alert.window_minutes}min`}
+                        {' · '}{alert.email_recipients?.[0]}
                       </p>
                     </div>
                   </div>

@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Input } from '@/components/ui/input'
 
 interface Trace {
   id: string
@@ -13,6 +12,7 @@ interface Trace {
   total_cost_usd: number
   total_tokens: number
   created_at: string
+  metadata: Record<string, string> | null
   projects: { name: string } | null
 }
 
@@ -34,10 +34,27 @@ export default function TracesPage() {
   const [total, setTotal] = useState(0)
   const [offset, setOffset] = useState(0)
   const [statusFilter, setStatusFilter] = useState('')
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const dateRangeInvalid = !!(dateFrom && dateTo && dateTo < dateFrom)
+  const [promptVersion, setPromptVersion] = useState('')
   const [loading, setLoading] = useState(true)
   const searchParams = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
   const limit = 50
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Debounce search input 300ms
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(search)
+      setOffset(0)
+    }, 300)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [search])
 
   useEffect(() => {
     if (isDemo) {
@@ -48,15 +65,20 @@ export default function TracesPage() {
       })
       return
     }
+    if (dateRangeInvalid) return
     setLoading(true)
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
     if (statusFilter) params.set('status', statusFilter)
+    if (debouncedSearch) params.set('search', debouncedSearch)
+    if (dateFrom) params.set('date_from', new Date(dateFrom + 'T00:00:00').toISOString())
+    if (dateTo) params.set('date_to', new Date(dateTo + 'T23:59:59.999').toISOString())
+    if (promptVersion) params.set('prompt_version', promptVersion)
     fetch(`/api/traces?${params}`).then((r) => r.json()).then((d) => {
       setTraces(d.traces ?? [])
       setTotal(d.total ?? 0)
       setLoading(false)
     })
-  }, [offset, statusFilter, isDemo])
+  }, [offset, statusFilter, debouncedSearch, dateFrom, dateTo, promptVersion, isDemo])
 
   return (
     <div className="space-y-6">
@@ -78,12 +100,52 @@ export default function TracesPage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-3">
+        <input
+          type="text"
+          placeholder="Search by trace name…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          maxLength={200}
+          className="flex-1 min-w-[200px] bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors"
+        />
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => { setDateFrom(e.target.value); setOffset(0) }}
+              className={`bg-zinc-900 border rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none transition-colors [color-scheme:dark] ${dateRangeInvalid ? 'border-red-500/50' : 'border-zinc-800 focus:border-zinc-600'}`}
+            />
+            <span className="text-zinc-600 text-sm">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => { setDateTo(e.target.value); setOffset(0) }}
+              className={`bg-zinc-900 border rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none transition-colors [color-scheme:dark] ${dateRangeInvalid ? 'border-red-500/50' : 'border-zinc-800 focus:border-zinc-600'}`}
+            />
+            {(search || dateFrom || dateTo || promptVersion) && (
+              <button
+                onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); setPromptVersion(''); setOffset(0) }}
+                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors px-2"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {dateRangeInvalid && (
+            <p className="text-red-400 text-xs pl-1">"From" date must be before "to" date</p>
+          )}
+        </div>
+      </div>
+
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-800">
               <th className="text-left py-3 px-4 text-zinc-500 font-medium">Name</th>
               <th className="text-left py-3 px-4 text-zinc-500 font-medium">Project</th>
+              <th className="text-left py-3 px-4 text-zinc-500 font-medium">Version</th>
               <th className="text-left py-3 px-4 text-zinc-500 font-medium">Status</th>
               <th className="text-right py-3 px-4 text-zinc-500 font-medium">Duration</th>
               <th className="text-right py-3 px-4 text-zinc-500 font-medium">Tokens</th>
@@ -106,6 +168,18 @@ export default function TracesPage() {
                   </Link>
                 </td>
                 <td className="py-3 px-4 text-zinc-500 text-xs">{trace.projects?.name ?? '-'}</td>
+                <td className="py-3 px-4">
+                  {trace.metadata?.prompt_version ? (
+                    <button
+                      onClick={() => { setPromptVersion(p => p === trace.metadata!.prompt_version ? '' : trace.metadata!.prompt_version); setOffset(0) }}
+                      className={`text-xs font-mono px-1.5 py-0.5 rounded transition-colors ${promptVersion === trace.metadata.prompt_version ? 'text-violet-300 bg-violet-400/20 ring-1 ring-violet-400/40' : 'text-violet-400 bg-violet-400/10 hover:bg-violet-400/20'}`}
+                    >
+                      {trace.metadata.prompt_version}
+                    </button>
+                  ) : (
+                    <span className="text-zinc-700 text-xs">—</span>
+                  )}
+                </td>
                 <td className="py-3 px-4"><StatusBadge status={trace.status} /></td>
                 <td className="py-3 px-4 text-right text-zinc-400 text-xs tabular-nums">
                   {trace.duration_ms != null ? `${trace.duration_ms.toLocaleString()}ms` : '-'}
