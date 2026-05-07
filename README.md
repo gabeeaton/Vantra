@@ -129,8 +129,8 @@ vantra/
 ├── lib/
 │   └── digest-email.ts        # Weekly digest HTML email template
 └── sdk/
-    ├── python/                # vantra on PyPI (v0.1.2)
-    └── typescript/            # vantra-sdk on npm (v0.1.2)
+    ├── python/                # vantra on PyPI (v0.1.3)
+    └── typescript/            # vantra-sdk on npm (v0.1.3)
 ```
 
 ---
@@ -184,10 +184,13 @@ node test_anthropic.js
 ### SDK tests
 
 ```bash
-cd sdk/python && pytest tests/ -v   # 123 tests (unit + integration)
+cd sdk/python && pytest tests/ -v          # 141 unit tests
+python3 sdk/python/tests/test_integration.py  # 53 real-API integration tests
+cd sdk/typescript && npm test              # 31 unit tests
+cd sdk/typescript && npm run test:integration  # 18 real-API integration tests
 ```
 
-Integration tests spin up a real local HTTP server and verify the exact payloads the SDK sends — auth headers, span/trace linkage, prompt_version, async traces, OpenAI/Anthropic patches.
+Integration tests make real Anthropic and OpenAI API calls — verifying tokens, cost, streaming, error spans, `capture_io`, and trace context propagation.
 
 ---
 
@@ -213,6 +216,7 @@ Every push to `main` auto-deploys via Vercel.
 - [x] Prompt version tagging + version comparison
 - [x] Daily budget alerts
 - [x] Weekly digest email
+- [x] Streaming support (OpenAI + Anthropic, Python + TypeScript)
 - [ ] p95/p99 latency charts on the overview page
 - [ ] LangChain integration
 - [ ] LlamaIndex integration

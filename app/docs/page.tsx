@@ -27,6 +27,7 @@ export default function DocsPage() {
               { href: '#span', label: 'vantra.span()' },
               { href: '#openai', label: 'OpenAI auto-patch' },
               { href: '#anthropic', label: 'Anthropic auto-patch' },
+              { href: '#streaming', label: 'Streaming' },
               { href: '#example', label: 'Full example' },
               { href: '#faq', label: 'FAQ' },
             ].map((item) => (
@@ -249,6 +250,59 @@ def ask(question: str) -> str:
         messages=[{"role": "user", "content": question}]
     )
     return response.content[0].text`}</CodeBlockServer>
+          </section>
+
+          {/* Streaming */}
+          <section id="streaming" className="space-y-4">
+            <h2 className="text-2xl font-bold border-b border-white/5 pb-4">Streaming</h2>
+            <p className="text-zinc-400 text-sm leading-relaxed">
+              Streaming calls are captured automatically — no changes to your code needed.
+              Tokens, cost, and assembled output are recorded when the stream finishes.
+            </p>
+            <CodeBlockServer lang="python">{`# Python — OpenAI streaming
+stream = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": question}],
+    stream=True,
+)
+for chunk in stream:   # captured transparently
+    print(chunk.choices[0].delta.content or "", end="")
+
+# Python — Anthropic streaming
+stream = client.messages.create(
+    model="claude-haiku-4-5",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": question}],
+    stream=True,
+)
+for event in stream:   # captured transparently
+    if event.type == "content_block_delta":
+        print(event.delta.text, end="")`}</CodeBlockServer>
+            <CodeBlockServer lang="typescript">{`// TypeScript — OpenAI streaming
+const stream = await client.chat.completions.create({
+  model: 'gpt-4o',
+  messages: [{ role: 'user', content: question }],
+  stream: true,
+})
+for await (const chunk of stream) {   // captured transparently
+  process.stdout.write(chunk.choices[0]?.delta?.content ?? '')
+}
+
+// TypeScript — Anthropic streaming
+const stream = await client.messages.create({
+  model: 'claude-haiku-4-5',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: question }],
+  stream: true,
+})
+for await (const event of stream) {   // captured transparently
+  if (event.type === 'content_block_delta') {
+    process.stdout.write(event.delta.text)
+  }
+}`}</CodeBlockServer>
+            <Callout>
+              OpenAI streaming automatically injects <code className="text-[#4DE5FC] bg-white/5 px-1 py-0.5 rounded text-xs">stream_options: {'{'}include_usage: true{'}'}</code> so token counts are always available. You don{"'"}t need to set this yourself.
+            </Callout>
           </section>
 
           {/* Full example */}
