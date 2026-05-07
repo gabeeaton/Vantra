@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { Tooltip } from '@/components/tooltip'
 
 interface Trace {
   id: string
@@ -160,7 +161,10 @@ export default function TracesPage() {
             <tr className="border-b border-zinc-800">
               <th className="text-left py-3 px-4 text-zinc-500 font-medium">Name</th>
               <th className="text-left py-3 px-4 text-zinc-500 font-medium">Project</th>
-              <th className="text-left py-3 px-4 text-zinc-500 font-medium">Version</th>
+              <th className="text-left py-3 px-4 text-zinc-500 font-medium">
+                Version
+                <Tooltip content="Prompt version tag set in your SDK with prompt_version='v1'. Click a badge to filter by that version, or use Compare versions to diff two versions side by side." />
+              </th>
               <th className="text-left py-3 px-4 text-zinc-500 font-medium">Status</th>
               <th className="text-right py-3 px-4 text-zinc-500 font-medium">Duration</th>
               <th className="text-right py-3 px-4 text-zinc-500 font-medium">Tokens</th>

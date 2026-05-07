@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Tooltip } from '@/components/tooltip'
 
 interface Alert {
   id: string
@@ -117,7 +118,17 @@ export default function AlertsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-zinc-400 text-xs">Metric</Label>
+              <Label className="text-zinc-400 text-xs gap-0">
+                Metric
+                <Tooltip content={
+                  <div className="space-y-1.5">
+                    <p><span className="text-white font-medium">Error rate:</span> % of calls that failed</p>
+                    <p><span className="text-white font-medium">P95 latency:</span> slowest 5% of call durations</p>
+                    <p><span className="text-white font-medium">Hourly cost:</span> $ spent in the last hour</p>
+                    <p><span className="text-white font-medium">Daily budget:</span> $ spent today, resets midnight UTC</p>
+                  </div>
+                } />
+              </Label>
               <select
                 value={form.metric}
                 onChange={e => setForm({ ...form, metric: e.target.value })}
@@ -269,9 +280,8 @@ export default function AlertsPage() {
         <div>
           <p className="text-white text-sm font-medium mb-1">How alerts work</p>
           <p className="text-zinc-500 text-xs leading-relaxed">
-            Vantra checks your metrics every 5 minutes against a 15-minute rolling window.
-            When a threshold is breached, you get an email instantly. No spam — alerts are rate-limited to once per hour per rule.
-            Slack alerts available on the Team plan.
+            Vantra checks your metrics every 15 minutes against a rolling window (default 15 min).
+            When a threshold is breached, you get an email and/or Slack message instantly. No spam — alerts are rate-limited to once per hour per rule.
           </p>
         </div>
       </div>

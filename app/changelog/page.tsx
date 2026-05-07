@@ -11,6 +11,22 @@ export default function ChangelogPage() {
           <div className="border-l-2 border-[#4DE5FC]/30 pl-6 relative">
             <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-[#4DE5FC]" />
             <div className="text-xs text-zinc-500 mb-2">May 6, 2026</div>
+            <h2 className="text-white font-semibold text-base mb-3">v0.1.3 — Prompt versioning, trace search, weekly digest</h2>
+            <ul className="space-y-1.5 text-zinc-400 text-sm">
+              <li>• Prompt version tagging — pass <code className="text-[#4DE5FC] text-xs">prompt_version="v2"</code> to <code className="text-[#4DE5FC] text-xs">@vantra.trace</code> and filter traces by version in the dashboard</li>
+              <li>• Version comparison — select two prompt versions to see error rate, latency, and cost side by side</li>
+              <li>• Trace search — filter by name, status, date range, or prompt version</li>
+              <li>• Daily budget alerts — get notified when spend exceeds a threshold, resets at midnight UTC</li>
+              <li>• Weekly digest — Monday morning email with traces, tokens, cost, error rate, and top models per org</li>
+              <li>• Python SDK: <code className="text-[#4DE5FC] text-xs">prompt_version</code> param on <code className="text-[#4DE5FC] text-xs">@vantra.trace</code></li>
+              <li>• TypeScript SDK: <code className="text-[#4DE5FC] text-xs">promptVersion</code> option on <code className="text-[#4DE5FC] text-xs">trace()</code></li>
+              <li>• 123 SDK tests (was 63), including full integration tests against a real HTTP server</li>
+            </ul>
+          </div>
+
+          <div className="border-l-2 border-zinc-800 pl-6 relative">
+            <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-zinc-600" />
+            <div className="text-xs text-zinc-500 mb-2">May 6, 2026</div>
             <h2 className="text-white font-semibold text-base mb-3">v0.1.2 — Async support, capture_io, full message history</h2>
             <ul className="space-y-1.5 text-zinc-400 text-sm">
               <li>• Python SDK: <code className="text-[#4DE5FC] text-xs">@vantra.trace</code> now works on <code className="text-[#4DE5FC] text-xs">async def</code> functions</li>
