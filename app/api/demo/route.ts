@@ -27,20 +27,21 @@ export const DEMO_CHART = {
 }
 
 export const DEMO_TRACES = [
-  { id: 'demo-1', name: 'support_agent_run', status: 'ok',    duration_ms: 4231, total_tokens: 1420, total_cost_usd: 0.00421, created_at: new Date(now - 2  * 60000).toISOString(), projects: { name: 'customer-support' } },
-  { id: 'demo-2', name: 'classify_intent',   status: 'ok',    duration_ms: 312,  total_tokens: 220,  total_cost_usd: 0.00008, created_at: new Date(now - 5  * 60000).toISOString(), projects: { name: 'customer-support' } },
-  { id: 'demo-3', name: 'support_agent_run', status: 'error', duration_ms: 8941, total_tokens: 3100, total_cost_usd: 0.00912, created_at: new Date(now - 11 * 60000).toISOString(), projects: { name: 'customer-support' } },
-  { id: 'demo-4', name: 'research_agent',    status: 'ok',    duration_ms: 6821, total_tokens: 5420, total_cost_usd: 0.01621, created_at: new Date(now - 18 * 60000).toISOString(), projects: { name: 'research-bot' } },
-  { id: 'demo-5', name: 'support_agent_run', status: 'ok',    duration_ms: 3102, total_tokens: 980,  total_cost_usd: 0.00291, created_at: new Date(now - 34 * 60000).toISOString(), projects: { name: 'customer-support' } },
-  { id: 'demo-6', name: 'summarize_thread',  status: 'ok',    duration_ms: 1893, total_tokens: 2840, total_cost_usd: 0.00841, created_at: new Date(now - 52 * 60000).toISOString(), projects: { name: 'research-bot' } },
-  { id: 'demo-7', name: 'research_agent',    status: 'ok',    duration_ms: 7234, total_tokens: 6120, total_cost_usd: 0.01834, created_at: new Date(now - 78 * 60000).toISOString(), projects: { name: 'research-bot' } },
-  { id: 'demo-8', name: 'support_agent_run', status: 'ok',    duration_ms: 2891, total_tokens: 1140, total_cost_usd: 0.00341, created_at: new Date(now - 94 * 60000).toISOString(), projects: { name: 'customer-support' } },
+  { id: 'demo-1', name: 'support_agent_run', status: 'ok',    duration_ms: 4231, total_tokens: 1420, total_cost_usd: 0.00421, created_at: new Date(now - 2  * 60000).toISOString(), metadata: { prompt_version: 'v2' }, projects: { name: 'customer-support' } },
+  { id: 'demo-2', name: 'classify_intent',   status: 'ok',    duration_ms: 312,  total_tokens: 220,  total_cost_usd: 0.00008, created_at: new Date(now - 5  * 60000).toISOString(), metadata: { prompt_version: 'v2' }, projects: { name: 'customer-support' } },
+  { id: 'demo-3', name: 'support_agent_run', status: 'error', duration_ms: 8941, total_tokens: 3100, total_cost_usd: 0.00912, created_at: new Date(now - 11 * 60000).toISOString(), metadata: { prompt_version: 'v2' }, projects: { name: 'customer-support' } },
+  { id: 'demo-4', name: 'research_agent',    status: 'ok',    duration_ms: 6821, total_tokens: 5420, total_cost_usd: 0.01621, created_at: new Date(now - 18 * 60000).toISOString(), metadata: { prompt_version: 'v1' }, projects: { name: 'research-bot' } },
+  { id: 'demo-5', name: 'support_agent_run', status: 'ok',    duration_ms: 3102, total_tokens: 980,  total_cost_usd: 0.00291, created_at: new Date(now - 34 * 60000).toISOString(), metadata: { prompt_version: 'v1' }, projects: { name: 'customer-support' } },
+  { id: 'demo-6', name: 'summarize_thread',  status: 'ok',    duration_ms: 1893, total_tokens: 2840, total_cost_usd: 0.00841, created_at: new Date(now - 52 * 60000).toISOString(), metadata: null,                      projects: { name: 'research-bot' } },
+  { id: 'demo-7', name: 'research_agent',    status: 'ok',    duration_ms: 7234, total_tokens: 6120, total_cost_usd: 0.01834, created_at: new Date(now - 78 * 60000).toISOString(), metadata: { prompt_version: 'v1' }, projects: { name: 'research-bot' } },
+  { id: 'demo-8', name: 'support_agent_run', status: 'ok',    duration_ms: 2891, total_tokens: 1140, total_cost_usd: 0.00341, created_at: new Date(now - 94 * 60000).toISOString(), metadata: { prompt_version: 'v1' }, projects: { name: 'customer-support' } },
 ]
 
 export const DEMO_ALERTS = [
   { id: 'alert-1', name: 'High error rate',    metric: 'error_rate',    threshold: 10,   window_minutes: 15, email_recipients: ['team@acme.com'], enabled: true,  created_at: new Date(now - 3 * day).toISOString(), projects: { name: 'customer-support' } },
   { id: 'alert-2', name: 'Latency spike',      metric: 'p95_latency',   threshold: 5000, window_minutes: 15, email_recipients: ['team@acme.com'], enabled: true,  created_at: new Date(now - 5 * day).toISOString(), projects: { name: 'customer-support' } },
   { id: 'alert-3', name: 'Cost over $2/hr',    metric: 'cost_per_hour', threshold: 2,    window_minutes: 60, email_recipients: ['team@acme.com'], enabled: false, created_at: new Date(now - 7 * day).toISOString(), projects: { name: 'research-bot' } },
+  { id: 'alert-4', name: 'Daily budget $10',   metric: 'daily_budget',  threshold: 10,   window_minutes: 15, email_recipients: ['team@acme.com'], enabled: true,  created_at: new Date(now - 2 * day).toISOString(), projects: { name: 'research-bot' } },
 ]
 
 export const DEMO_TRACE_DETAIL = {
