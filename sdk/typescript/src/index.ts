@@ -6,6 +6,7 @@ const config = {
   apiKey: null as string | null,
   project: null as string | null,
   enabled: true,
+  captureIo: true,
 }
 
 // AsyncLocalStorage for trace context (Node.js 12.17+)
@@ -94,6 +95,7 @@ export interface InitOptions {
   apiKey: string
   project: string
   enabled?: boolean
+  captureIo?: boolean
   patchOpenAI?: boolean
   patchAnthropic?: boolean
 }
@@ -102,6 +104,7 @@ export function init(options: InitOptions): void {
   config.apiKey = options.apiKey
   config.project = options.project
   config.enabled = options.enabled ?? true
+  config.captureIo = options.captureIo ?? true
 
   if (!flushTimer) {
     flushTimer = setInterval(flush, 500)
@@ -240,6 +243,8 @@ export async function span<T>(
   }
 }
 
+// ─── OpenAI patch ────────────────────────────────────────────────────────────
+
 function patchOpenAI(): void {
   try {
     const openaiModule = require('openai')
@@ -249,8 +254,28 @@ function patchOpenAI(): void {
     if (!original || (original as { __vantra?: boolean }).__vantra) return
 
     const patched = async function (this: unknown, ...args: unknown[]) {
-      const kwargs = args[0] as Record<string, unknown>
+      let kwargs = args[0] as Record<string, unknown>
       const start = Date.now()
+      const model = (kwargs?.model as string) ?? 'unknown'
+      const messages = (kwargs?.messages as unknown[]) ?? []
+      const captureIo = config.captureIo
+
+      if (kwargs?.stream) {
+        if (!kwargs.stream_options) {
+          kwargs = { ...kwargs, stream_options: { include_usage: true } }
+          args = [kwargs, ...args.slice(1)]
+        }
+        let rawStream: AsyncIterable<Record<string, unknown>>
+        try {
+          rawStream = await original.apply(this, args) as AsyncIterable<Record<string, unknown>>
+        } catch (e) {
+          queueSpan(_openaiErrorSpan(model, messages, captureIo, start, e instanceof Error ? e.message : String(e)))
+          throw e
+        }
+        return _wrapOpenAIStream(rawStream, start, model, messages, captureIo)
+      }
+
+      // Non-streaming path
       let status = 'ok'
       let errorMsg: string | null = null
       let response: Record<string, unknown> | null = null
@@ -264,7 +289,6 @@ function patchOpenAI(): void {
         throw e
       } finally {
         const end = Date.now()
-        const model = (kwargs?.model as string) ?? 'unknown'
         let inputTokens = 0, outputTokens = 0, cost = 0
         const usage = response && (response.usage as Record<string, number>)
         if (usage) {
@@ -290,8 +314,8 @@ function patchOpenAI(): void {
           input_tokens: inputTokens,
           output_tokens: outputTokens,
           cost_usd: cost,
-          input: truncate({ messages: (kwargs?.messages as unknown[])?.slice(-1) }),
-          output: outputContent ? { content: outputContent.slice(0, 1000) } : undefined,
+          input: captureIo ? truncate({ messages: messages.slice(-1) }) : undefined,
+          output: captureIo && outputContent ? { content: outputContent.slice(0, 1000) } : undefined,
         })
       }
     };
@@ -299,6 +323,88 @@ function patchOpenAI(): void {
     Completions.prototype.create = patched
   } catch { /* openai not installed */ }
 }
+
+function _openaiErrorSpan(
+  model: string, messages: unknown[], captureIo: boolean,
+  start: number, errorMsg: string
+): SpanData {
+  const end = Date.now()
+  return {
+    span_id: randomId(),
+    trace_id: asyncLocalStorage?.getStore()?.traceId ?? null,
+    name: `openai.chat (${model})`,
+    kind: 'llm',
+    provider: 'openai',
+    model,
+    project: config.project,
+    start_time: start / 1000,
+    end_time: end / 1000,
+    duration_ms: end - start,
+    status: 'error',
+    error_message: errorMsg,
+    input_tokens: 0,
+    output_tokens: 0,
+    cost_usd: 0,
+    input: captureIo ? truncate({ messages: messages.slice(-1) }) : undefined,
+    output: undefined,
+  }
+}
+
+async function* _wrapOpenAIStream(
+  stream: AsyncIterable<Record<string, unknown>>,
+  start: number,
+  model: string,
+  messages: unknown[],
+  captureIo: boolean,
+): AsyncGenerator<Record<string, unknown>> {
+  const contentChunks: string[] = []
+  let inputTokens = 0, outputTokens = 0
+  let status = 'ok'
+  let errorMsg: string | null = null
+
+  try {
+    for await (const chunk of stream) {
+      const usage = chunk.usage as Record<string, number> | undefined
+      if (usage) {
+        inputTokens = usage.prompt_tokens ?? 0
+        outputTokens = usage.completion_tokens ?? 0
+      }
+      const choices = chunk.choices as Array<{ delta?: { content?: string } }> | undefined
+      const content = choices?.[0]?.delta?.content
+      if (content) contentChunks.push(content)
+      yield chunk
+    }
+  } catch (e) {
+    status = 'error'
+    errorMsg = e instanceof Error ? e.message : String(e)
+    throw e
+  } finally {
+    const end = Date.now()
+    const cost = calculateCost(model, inputTokens, outputTokens)
+    const fullContent = contentChunks.join('')
+    queueSpan({
+      span_id: randomId(),
+      trace_id: asyncLocalStorage?.getStore()?.traceId ?? null,
+      name: `openai.chat (${model})`,
+      kind: 'llm',
+      provider: 'openai',
+      model,
+      project: config.project,
+      start_time: start / 1000,
+      end_time: end / 1000,
+      duration_ms: end - start,
+      status,
+      error_message: errorMsg,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      cost_usd: cost,
+      input: captureIo ? truncate({ messages: messages.slice(-1) }) : undefined,
+      output: captureIo && fullContent ? { content: fullContent.slice(0, 1000) } : undefined,
+    })
+  }
+}
+
+// ─── Anthropic patch ──────────────────────────────────────────────────────────
 
 function patchAnthropic(): void {
   try {
@@ -314,6 +420,22 @@ function patchAnthropic(): void {
     const patched = async function (this: unknown, ...args: unknown[]) {
       const kwargs = args[0] as Record<string, unknown>
       const start = Date.now()
+      const model = (kwargs?.model as string) ?? 'unknown'
+      const messages = (kwargs?.messages as unknown[]) ?? []
+      const captureIo = config.captureIo
+
+      if (kwargs?.stream) {
+        let rawStream: AsyncIterable<Record<string, unknown>>
+        try {
+          rawStream = await original.apply(this, args) as AsyncIterable<Record<string, unknown>>
+        } catch (e) {
+          queueSpan(_anthropicErrorSpan(model, messages, captureIo, start, e instanceof Error ? e.message : String(e)))
+          throw e
+        }
+        return _wrapAnthropicStream(rawStream, start, model, messages, captureIo)
+      }
+
+      // Non-streaming path
       let status = 'ok'
       let errorMsg: string | null = null
       let response: Record<string, unknown> | null = null
@@ -327,7 +449,6 @@ function patchAnthropic(): void {
         throw e
       } finally {
         const end = Date.now()
-        const model = (kwargs?.model as string) ?? 'unknown'
         let inputTokens = 0, outputTokens = 0, cost = 0
         const usage = response && (response.usage as Record<string, number>)
         if (usage) {
@@ -353,14 +474,101 @@ function patchAnthropic(): void {
           input_tokens: inputTokens,
           output_tokens: outputTokens,
           cost_usd: cost,
-          input: truncate({ messages: (kwargs?.messages as unknown[])?.slice(-1) }),
-          output: outputText ? { text: outputText.slice(0, 1000) } : undefined,
+          input: captureIo ? truncate({ messages: messages.slice(-1) }) : undefined,
+          output: captureIo && outputText ? { text: outputText.slice(0, 1000) } : undefined,
         })
       }
     };
     (patched as { __vantra?: boolean }).__vantra = true
     Messages.prototype.create = patched as unknown as Record<string, unknown>
   } catch { /* anthropic not installed */ }
+}
+
+function _anthropicErrorSpan(
+  model: string, messages: unknown[], captureIo: boolean,
+  start: number, errorMsg: string
+): SpanData {
+  const end = Date.now()
+  return {
+    span_id: randomId(),
+    trace_id: asyncLocalStorage?.getStore()?.traceId ?? null,
+    name: `anthropic.messages (${model})`,
+    kind: 'llm',
+    provider: 'anthropic',
+    model,
+    project: config.project,
+    start_time: start / 1000,
+    end_time: end / 1000,
+    duration_ms: end - start,
+    status: 'error',
+    error_message: errorMsg,
+    input_tokens: 0,
+    output_tokens: 0,
+    cost_usd: 0,
+    input: captureIo ? truncate({ messages: messages.slice(-1) }) : undefined,
+    output: undefined,
+  }
+}
+
+async function* _wrapAnthropicStream(
+  stream: AsyncIterable<Record<string, unknown>>,
+  start: number,
+  model: string,
+  messages: unknown[],
+  captureIo: boolean,
+): AsyncGenerator<Record<string, unknown>> {
+  const contentChunks: string[] = []
+  let inputTokens = 0, outputTokens = 0
+  let status = 'ok'
+  let errorMsg: string | null = null
+
+  try {
+    for await (const event of stream) {
+      const eventType = event.type as string | undefined
+
+      if (eventType === 'message_start') {
+        const msg = event.message as Record<string, unknown> | undefined
+        const usage = msg?.usage as Record<string, number> | undefined
+        if (usage) inputTokens = usage.input_tokens ?? 0
+      } else if (eventType === 'content_block_delta') {
+        const delta = event.delta as Record<string, unknown> | undefined
+        const text = delta?.text
+        if (typeof text === 'string' && text) contentChunks.push(text)
+      } else if (eventType === 'message_delta') {
+        const usage = event.usage as Record<string, number> | undefined
+        if (usage) outputTokens = usage.output_tokens ?? 0
+      }
+
+      yield event
+    }
+  } catch (e) {
+    status = 'error'
+    errorMsg = e instanceof Error ? e.message : String(e)
+    throw e
+  } finally {
+    const end = Date.now()
+    const cost = calculateCost(model, inputTokens, outputTokens)
+    const fullText = contentChunks.join('')
+    queueSpan({
+      span_id: randomId(),
+      trace_id: asyncLocalStorage?.getStore()?.traceId ?? null,
+      name: `anthropic.messages (${model})`,
+      kind: 'llm',
+      provider: 'anthropic',
+      model,
+      project: config.project,
+      start_time: start / 1000,
+      end_time: end / 1000,
+      duration_ms: end - start,
+      status,
+      error_message: errorMsg,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      cost_usd: cost,
+      input: captureIo ? truncate({ messages: messages.slice(-1) }) : undefined,
+      output: captureIo && fullText ? { text: fullText.slice(0, 1000) } : undefined,
+    })
+  }
 }
 
 function randomId(): string {

@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "test": "jest",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -28,7 +29,10 @@
   },
   "homepage": "https://vantra.dev",
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "anthropic": "^0.0.0",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.9",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
