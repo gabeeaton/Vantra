@@ -75,11 +75,14 @@ Open source: [github.com/gabeeaton/vantra-sdk](https://github.com/gabeeaton/vant
 
 ## Pricing
 
+Not per seat, ever.
+
 | Plan | Price | Spans | Retention | Alerts |
 |---|---|---|---|---|
 | Free | $0 | 50K/mo | 30 days | — |
-| Pro | $29/mo | 1M/mo | 90 days | Email |
-| Team | $299/mo | 10M/mo | 1 year | Email + Slack |
+| Indie | $9/mo | 500K/mo | 60 days | Email |
+| Pro | $19/mo | 2M/mo | 90 days | Email |
+| Team | $79/mo | 10M/mo | 1 year | Email + Slack |
 | Enterprise | Custom | Unlimited | Custom | Custom |
 
 ---
@@ -88,7 +91,7 @@ Open source: [github.com/gabeeaton/vantra-sdk](https://github.com/gabeeaton/vant
 
 | Tool | Wedge against Vantra |
 |---|---|
-| LangSmith | LangChain-first, $39/user/month, no anomaly alerts |
+| LangSmith | LangChain-first, $39/seat/month, per-seat pricing |
 | Langfuse | Self-hosted complexity, no alerting |
 | Helicone | Proxy-based (adds latency), OpenAI-only, no traces |
 | Datadog LLM | $3K+/month, enterprise complexity |
@@ -154,6 +157,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_INDIE=
 STRIPE_PRICE_PRO=
 STRIPE_PRICE_TEAM=
 

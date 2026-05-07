@@ -245,8 +245,9 @@ export default function SettingsPage() {
         <div className="divide-y divide-white/[0.04]">
           {[
             { plan: 'free', label: 'Free', price: '$0', desc: '50K spans/month · 1 project · 30-day retention', current: plan === 'free' },
-            { plan: 'pro', label: 'Pro', price: '$29/mo', desc: '1M spans/month · 10 projects · 90-day retention · Email alerts', current: plan === 'pro' },
-            { plan: 'team', label: 'Team', price: '$299/mo', desc: '10M spans/month · Unlimited projects · 1-year retention · Slack alerts · Priority support', current: plan === 'team' },
+            { plan: 'indie', label: 'Indie', price: '$9/mo', desc: '500K spans/month · 3 projects · 60-day retention · Email alerts', current: plan === 'indie' },
+            { plan: 'pro', label: 'Pro', price: '$19/mo', desc: '2M spans/month · 10 projects · 90-day retention · Email alerts', current: plan === 'pro' },
+            { plan: 'team', label: 'Team', price: '$79/mo', desc: '10M spans/month · Unlimited projects · 1-year retention · Slack alerts · Priority support', current: plan === 'team' },
           ].map((tier) => (
             <div key={tier.plan} className="px-6 py-4 flex items-center justify-between">
               <div>

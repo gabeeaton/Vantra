@@ -2,6 +2,7 @@ export interface InitOptions {
     apiKey: string;
     project: string;
     enabled?: boolean;
+    captureIo?: boolean;
     patchOpenAI?: boolean;
     patchAnthropic?: boolean;
 }

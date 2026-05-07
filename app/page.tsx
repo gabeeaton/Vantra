@@ -188,7 +188,7 @@ export default function LandingPage() {
               <tr className="bg-[#4DE5FC]/5 border border-[#4DE5FC]/20 rounded-xl">
                 <td className="py-3 pr-6 font-bold text-[#4DE5FC]">Vantra</td>
                 <td className="py-3 px-4 text-green-400">3 lines</td>
-                <td className="py-3 px-4 text-green-400">Free → $29/mo</td>
+                <td className="py-3 px-4 text-green-400">Free → $9/mo</td>
                 <td className="py-3 px-4 text-green-400">Anomaly detection built-in</td>
                 <td className="py-3 px-4 text-green-400">Any</td>
               </tr>
@@ -202,7 +202,7 @@ export default function LandingPage() {
               <tr>
                 <td className="py-3 pr-6 text-zinc-300">Langfuse</td>
                 <td className="py-3 px-4 text-zinc-500">Medium</td>
-                <td className="py-3 px-4 text-zinc-500">Free (self-host) or $29/mo</td>
+                <td className="py-3 px-4 text-zinc-500">$29/mo (100K units, 30-day retention)</td>
                 <td className="py-3 px-4 text-zinc-500">Basic</td>
                 <td className="py-3 px-4 text-zinc-500">Any</td>
               </tr>
@@ -228,7 +228,8 @@ export default function LandingPage() {
           </div>
         </ScrollReveal>
 
-        <div className="grid md:grid-cols-4 gap-5 max-w-5xl mx-auto">
+        <p className="text-center text-zinc-600 text-xs mb-8">Not per seat, ever.</p>
+        <div className="grid md:grid-cols-5 gap-4 max-w-6xl mx-auto">
           {[
             {
               name: 'Free',
@@ -239,17 +240,24 @@ export default function LandingPage() {
               highlight: false,
             },
             {
-              name: 'Pro',
-              price: '$29',
+              name: 'Indie',
+              price: '$9',
               period: 'per month',
-              features: ['1M spans/month', '10 projects', '90-day retention', 'Email alerts', 'All Free features'],
+              features: ['500K spans/month', '3 projects', '60-day retention', 'Email alerts', 'All Free features'],
+              cta: 'Get started',
+              highlight: false,
+            },
+            {
+              name: 'Pro',
+              price: '$19',
+              period: 'per month',
+              features: ['2M spans/month', '10 projects', '90-day retention', 'Email alerts', 'All Free features'],
               cta: 'Get started',
               highlight: true,
-              badge: 'Launch pricing',
             },
             {
               name: 'Team',
-              price: '$299',
+              price: '$79',
               period: 'per month',
               features: ['10M spans/month', 'Unlimited projects', '1-year retention', 'Slack alerts', 'Priority support'],
               cta: 'Get started',

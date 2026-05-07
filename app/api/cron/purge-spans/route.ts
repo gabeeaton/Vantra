@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const RETENTION_DAYS: Record<string, number> = {
   free: 30,
+  indie: 60,
   pro: 90,
   team: 365,
   enterprise: Infinity,

@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const PLAN_LIMITS: Record<string, number> = {
   free: 50_000,
-  pro: 1_000_000,
+  indie: 500_000,
+  pro: 2_000_000,
   team: 10_000_000,
   enterprise: Infinity,
 }

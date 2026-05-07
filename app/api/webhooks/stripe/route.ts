@@ -11,6 +11,7 @@ const admin = () => createClient(
 const PLAN_FROM_PRICE: Record<string, string> = {}
 
 function getPlanFromPrice(priceId: string): string {
+  if (priceId === process.env.STRIPE_PRICE_INDIE) return 'indie'
   if (priceId === process.env.STRIPE_PRICE_PRO) return 'pro'
   if (priceId === process.env.STRIPE_PRICE_TEAM) return 'team'
   return 'free'

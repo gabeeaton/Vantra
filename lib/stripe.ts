@@ -12,10 +12,15 @@ export function getStripe() {
 }
 
 export const PLANS: Record<string, { priceId: string; name: string; limit: number }> = {
+  indie: {
+    priceId: process.env.STRIPE_PRICE_INDIE!,
+    name: 'Indie',
+    limit: 500_000,
+  },
   pro: {
     priceId: process.env.STRIPE_PRICE_PRO!,
     name: 'Pro',
-    limit: 1_000_000,
+    limit: 2_000_000,
   },
   team: {
     priceId: process.env.STRIPE_PRICE_TEAM!,

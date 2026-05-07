@@ -391,6 +391,14 @@ if __name__ == "__main__":
                 a: 'Yes — inputs and outputs are captured so you can inspect them in the trace waterfall. Payloads over 2KB are truncated. Contact us if you need input/output capture disabled.',
               },
               {
+                q: 'What counts as a span toward my monthly limit?',
+                a: 'Every individual span you send — LLM calls, tool invocations, vantra.span() blocks — counts. Top-level @vantra.trace calls are also spans. You control what gets instrumented, so you only pay for what you track.',
+              },
+              {
+                q: 'Is pricing per seat?',
+                a: 'No. All plans are per organization, not per user. Add your whole team without paying more.',
+              },
+              {
                 q: 'How do I get my API key?',
                 a: 'Go to Settings → API Keys → Create key. Keys start with van_live_.',
               },
@@ -405,7 +413,7 @@ if __name__ == "__main__":
           {/* CTA */}
           <div className="bg-[#0d0d0d] border border-white/5 rounded-2xl p-8 text-center">
             <h3 className="text-xl font-bold mb-2">Ready to get started?</h3>
-            <p className="text-zinc-400 text-sm mb-6">Free for up to 10K spans/month. No credit card required.</p>
+            <p className="text-zinc-400 text-sm mb-6">Free for up to 50K spans/month. No credit card required.</p>
             <Link
               href="/login"
               className="inline-block bg-[#4DE5FC] text-black font-bold px-8 py-3 rounded-xl hover:bg-[#3dd4ea] transition-colors"
