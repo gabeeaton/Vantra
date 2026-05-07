@@ -92,6 +92,7 @@ function init(options) {
 function trace(fn, options) {
     var _a, _b;
     const traceName = (_b = (_a = options === null || options === void 0 ? void 0 : options.name) !== null && _a !== void 0 ? _a : fn.name) !== null && _b !== void 0 ? _b : 'trace';
+    const promptVersion = (options === null || options === void 0 ? void 0 : options.promptVersion) ? String(options.promptVersion).slice(0, 100) : undefined;
     const wrapped = function (...args) {
         if (!config.enabled)
             return fn.apply(this, args);
@@ -116,6 +117,7 @@ function trace(fn, options) {
                 error_message: errorMsg,
                 total_tokens: totalTokens,
                 total_cost_usd: totalCost,
+                ...(promptVersion ? { prompt_version: promptVersion } : {}),
             });
             if (collected.length)
                 post('/spans', collected);

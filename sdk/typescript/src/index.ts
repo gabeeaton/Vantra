@@ -114,9 +114,10 @@ export function init(options: InitOptions): void {
 
 export function trace<T extends (...args: unknown[]) => unknown>(
   fn: T,
-  options?: { name?: string }
+  options?: { name?: string; promptVersion?: string }
 ): T {
   const traceName = options?.name ?? fn.name ?? 'trace'
+  const promptVersion = options?.promptVersion ? String(options.promptVersion).slice(0, 100) : undefined
 
   const wrapped = function (this: unknown, ...args: unknown[]) {
     if (!config.enabled) return fn.apply(this, args)
@@ -144,6 +145,7 @@ export function trace<T extends (...args: unknown[]) => unknown>(
         error_message: errorMsg,
         total_tokens: totalTokens,
         total_cost_usd: totalCost,
+        ...(promptVersion ? { prompt_version: promptVersion } : {}),
       })
       if (collected.length) post('/spans', collected)
     }

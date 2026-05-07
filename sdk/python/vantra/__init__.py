@@ -85,12 +85,12 @@ def init(
         patch()
 
 
-def _finish_trace(trace_id, trace_name, start, status, error_msg):
+def _finish_trace(trace_id, trace_name, start, status, error_msg, prompt_version=None):
     collected = _pending_spans.get() or []
     end = time.time()
     total_tokens = sum((s.get("input_tokens") or 0) + (s.get("output_tokens") or 0) for s in collected)
     total_cost = sum(s.get("cost_usd") or 0 for s in collected)
-    _post("/traces", {
+    payload = {
         "trace_id": trace_id,
         "name": trace_name,
         "project": _config["project"],
@@ -101,12 +101,15 @@ def _finish_trace(trace_id, trace_name, start, status, error_msg):
         "error_message": error_msg,
         "total_tokens": total_tokens,
         "total_cost_usd": total_cost,
-    })
+    }
+    if prompt_version:
+        payload["prompt_version"] = str(prompt_version)[:100]
+    _post("/traces", payload)
     if collected:
         _post("/spans", collected)
 
 
-def trace(func=None, *, name: str = None):
+def trace(func=None, *, name: str = None, prompt_version: str = None):
     def decorator(fn):
         if asyncio.iscoroutinefunction(fn):
             @functools.wraps(fn)
@@ -131,7 +134,7 @@ def trace(func=None, *, name: str = None):
                     raise
                 finally:
                     _current_trace_id.reset(trace_token)
-                    _finish_trace(trace_id, trace_name, start, status, error_msg)
+                    _finish_trace(trace_id, trace_name, start, status, error_msg, prompt_version)
                     _pending_spans.reset(spans_token)
 
             return async_wrapper
@@ -158,7 +161,7 @@ def trace(func=None, *, name: str = None):
                     raise
                 finally:
                     _current_trace_id.reset(trace_token)
-                    _finish_trace(trace_id, trace_name, start, status, error_msg)
+                    _finish_trace(trace_id, trace_name, start, status, error_msg, prompt_version)
                     _pending_spans.reset(spans_token)
 
             return sync_wrapper
