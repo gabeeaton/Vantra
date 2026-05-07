@@ -213,5 +213,9 @@ Every push to `main` auto-deploys via Vercel.
 - [x] Prompt version tagging + version comparison
 - [x] Daily budget alerts
 - [x] Weekly digest email
+- [ ] p95/p99 latency charts on the overview page
+- [ ] LangChain integration
+- [ ] LlamaIndex integration
+- [ ] Vercel AI SDK integration
 - [ ] Usage-based billing
 - [ ] Helicone migration guide
