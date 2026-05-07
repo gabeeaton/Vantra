@@ -35,6 +35,8 @@ interface Trace {
 interface TraceWaterfallProps {
   trace: Trace
   spans: Span[]
+  rating?: string | null
+  onRate?: (r: 'up' | 'down' | null) => void
 }
 
 const KIND_COLORS: Record<string, string> = {
@@ -190,7 +192,7 @@ function SpanRow({
   )
 }
 
-export function TraceWaterfall({ trace, spans }: TraceWaterfallProps) {
+export function TraceWaterfall({ trace, spans, rating, onRate }: TraceWaterfallProps) {
   const tree = buildTree(spans)
   const rootSpans = tree.get(null) ?? spans.filter((s) => !s.parent_span_id)
   const traceDuration = trace.duration_ms ?? 0
@@ -236,6 +238,35 @@ export function TraceWaterfall({ trace, spans }: TraceWaterfallProps) {
           <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Status</p>
           <p className={`text-sm font-medium ${statusColor}`}>{trace.status}</p>
         </div>
+        {onRate && (
+          <div>
+            <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Rating</p>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => onRate(rating === 'up' ? null : 'up')}
+                title="Thumbs up"
+                className={`w-7 h-7 rounded-lg border flex items-center justify-center text-sm transition-colors ${
+                  rating === 'up'
+                    ? 'bg-green-400/15 border-green-400/30 text-green-400'
+                    : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400 hover:border-white/20'
+                }`}
+              >
+                ↑
+              </button>
+              <button
+                onClick={() => onRate(rating === 'down' ? null : 'down')}
+                title="Thumbs down"
+                className={`w-7 h-7 rounded-lg border flex items-center justify-center text-sm transition-colors ${
+                  rating === 'down'
+                    ? 'bg-red-400/15 border-red-400/30 text-red-400'
+                    : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400 hover:border-white/20'
+                }`}
+              >
+                ↓
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Spans table */}

@@ -24,6 +24,8 @@ const METRICS = [
   { value: 'p95_latency', label: 'P95 latency', unit: 'ms', description: 'Alert when p95 latency exceeds threshold' },
   { value: 'cost_per_hour', label: 'Hourly cost', unit: '$', description: 'Alert when hourly AI cost exceeds threshold' },
   { value: 'daily_budget', label: 'Daily budget', unit: '$', description: 'Alert when total spend today exceeds this amount (resets at midnight UTC)' },
+  { value: 'agent_loop', label: 'Agent loop', unit: 'spans', description: 'Alert when any single trace exceeds this many spans (runaway loop detection)' },
+  { value: 'eval_score', label: 'Eval score', unit: '%', description: 'Alert when thumbs-up rate on recently rated traces falls below this threshold (min 5 ratings required)' },
 ]
 
 export default function AlertsPage() {
@@ -126,6 +128,8 @@ export default function AlertsPage() {
                     <p><span className="text-white font-medium">P95 latency:</span> slowest 5% of call durations</p>
                     <p><span className="text-white font-medium">Hourly cost:</span> $ spent in the last hour</p>
                     <p><span className="text-white font-medium">Daily budget:</span> $ spent today, resets midnight UTC</p>
+                    <p><span className="text-white font-medium">Agent loop:</span> fires when a single trace exceeds the span count threshold</p>
+                    <p><span className="text-white font-medium">Eval score:</span> fires when thumbs-up rate falls below threshold (reversed — fires below, not above)</p>
                   </div>
                 } />
               </Label>
@@ -143,7 +147,14 @@ export default function AlertsPage() {
               <Input
                 value={form.threshold}
                 onChange={e => setForm({ ...form, threshold: e.target.value })}
-                placeholder={form.metric === 'error_rate' ? '10' : form.metric === 'p95_latency' ? '5000' : form.metric === 'daily_budget' ? '5.00' : '1.00'}
+                placeholder={
+                  form.metric === 'error_rate' ? '10' :
+                  form.metric === 'p95_latency' ? '5000' :
+                  form.metric === 'daily_budget' ? '5.00' :
+                  form.metric === 'agent_loop' ? '50' :
+                  form.metric === 'eval_score' ? '70' :
+                  '1.00'
+                }
                 type="number"
                 className="bg-black border-white/10 text-white placeholder:text-zinc-700 focus-visible:ring-[#4DE5FC]/30"
               />
@@ -241,7 +252,7 @@ export default function AlertsPage() {
                     <div>
                       <p className="text-white text-sm font-medium">{alert.name}</p>
                       <p className="text-zinc-600 text-xs mt-0.5">
-                        {metric?.label} &gt; {alert.threshold}{metric?.unit}
+                        {metric?.label} {alert.metric === 'eval_score' ? '<' : '>'} {alert.threshold}{metric?.unit}
                         {alert.metric !== 'daily_budget' && ` · every ${alert.window_minutes}min`}
                         {' · '}{alert.email_recipients?.[0]}
                       </p>

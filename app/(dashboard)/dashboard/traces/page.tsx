@@ -179,12 +179,16 @@ export default function TracesPage() {
                 className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors clickable"
               >
                 <td className="py-3 px-4">
-                  <Link
-                    href={`/dashboard/traces/${trace.id}${isDemo ? '?demo=true' : ''}`}
-                    className="text-white hover:text-zinc-300 font-mono text-xs"
-                  >
-                    {trace.name || 'Unnamed trace'}
-                  </Link>
+                  <div className="flex items-center gap-1.5">
+                    {trace.metadata?.rating === 'up' && <span className="text-green-400 text-xs leading-none">↑</span>}
+                    {trace.metadata?.rating === 'down' && <span className="text-red-400 text-xs leading-none">↓</span>}
+                    <Link
+                      href={`/dashboard/traces/${trace.id}${isDemo ? '?demo=true' : ''}`}
+                      className="text-white hover:text-zinc-300 font-mono text-xs"
+                    >
+                      {trace.name || 'Unnamed trace'}
+                    </Link>
+                  </div>
                 </td>
                 <td className="py-3 px-4 text-zinc-500 text-xs">{trace.projects?.name ?? '-'}</td>
                 <td className="py-3 px-4">

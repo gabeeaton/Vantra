@@ -102,6 +102,40 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    if (rule.metric === 'agent_loop') {
+      const { data } = await db
+        .from('spans')
+        .select('trace_id')
+        .eq('org_id', rule.org_id)
+        .gte('start_time', windowStart)
+        .not('trace_id', 'is', null)
+
+      if (data && data.length > 0) {
+        const counts = new Map<string, number>()
+        for (const s of data) {
+          if (s.trace_id) counts.set(s.trace_id, (counts.get(s.trace_id) ?? 0) + 1)
+        }
+        currentValue = Math.max(...counts.values())
+        breached = currentValue > rule.threshold
+      }
+    }
+
+    if (rule.metric === 'eval_score') {
+      const { data } = await db
+        .from('traces')
+        .select('metadata')
+        .eq('org_id', rule.org_id)
+        .gte('created_at', windowStart)
+        .not('metadata->>rating', 'is', null)
+
+      // Require at least 5 rated traces to avoid noise
+      if (data && data.length >= 5) {
+        const ups = data.filter(t => t.metadata?.rating === 'up').length
+        currentValue = Math.round((ups / data.length) * 100)
+        breached = currentValue < rule.threshold
+      }
+    }
+
     if (!breached) continue
 
     // Send email to all recipients
@@ -111,6 +145,10 @@ export async function GET(req: NextRequest) {
       ? `${currentValue}ms p95 latency (threshold: ${rule.threshold}ms)`
       : rule.metric === 'daily_budget'
       ? `$${currentValue.toFixed(4)} spent today (budget: $${rule.threshold})`
+      : rule.metric === 'agent_loop'
+      ? `${currentValue} spans in one trace (threshold: ${rule.threshold} spans)`
+      : rule.metric === 'eval_score'
+      ? `${currentValue}% approval rate (threshold: ${rule.threshold}%)`
       : `$${currentValue.toFixed(4)} cost/hour (threshold: $${rule.threshold})`
 
     if (process.env.RESEND_API_KEY) {

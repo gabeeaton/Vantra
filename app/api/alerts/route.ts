@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
 
-  const VALID_METRICS = ['error_rate', 'p95_latency', 'cost_per_hour', 'daily_budget']
+  const VALID_METRICS = ['error_rate', 'p95_latency', 'cost_per_hour', 'daily_budget', 'agent_loop', 'eval_score']
   if (!body.name || typeof body.name !== 'string' || body.name.length > 100) return NextResponse.json({ error: 'Invalid name' }, { status: 400 })
   if (!VALID_METRICS.includes(body.metric)) return NextResponse.json({ error: 'Invalid metric' }, { status: 400 })
   if (typeof body.threshold !== 'number' || body.threshold < 0) return NextResponse.json({ error: 'Invalid threshold' }, { status: 400 })

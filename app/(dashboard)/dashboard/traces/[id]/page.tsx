@@ -13,6 +13,7 @@ interface Trace {
   duration_ms: number | null
   total_tokens: number
   total_cost_usd: number
+  metadata?: { rating?: string } | null
 }
 
 interface Span {
@@ -41,6 +42,7 @@ export default function TracePage({ params }: { params: Promise<{ id: string }> 
   const [spans, setSpans] = useState<Span[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [rating, setRating] = useState<string | null>(null)
   const searchParams = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
 
@@ -62,9 +64,19 @@ export default function TracePage({ params }: { params: Promise<{ id: string }> 
         if (!data) return
         setTrace(data.trace)
         setSpans(data.spans ?? [])
+        setRating(data.trace.metadata?.rating ?? null)
         setLoading(false)
       })
   }, [id, isDemo])
+
+  function rateTrace(r: 'up' | 'down' | null) {
+    setRating(r)
+    fetch(`/api/traces/${id}/rate`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating: r }),
+    })
+  }
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -87,7 +99,7 @@ export default function TracePage({ params }: { params: Promise<{ id: string }> 
       {loading && !notFound && <TraceDetailSkeleton />}
 
       {!loading && !notFound && trace && (
-        <TraceWaterfall trace={trace} spans={spans} />
+        <TraceWaterfall trace={trace} spans={spans} rating={rating} onRate={isDemo ? undefined : rateTrace} />
       )}
     </div>
   )
