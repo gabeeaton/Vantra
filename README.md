@@ -221,9 +221,22 @@ Every push to `main` auto-deploys via Vercel.
 - [x] Daily budget alerts
 - [x] Weekly digest email
 - [x] Streaming support (OpenAI + Anthropic, Python + TypeScript)
+
+**Next up**
 - [ ] p95/p99 latency charts on the overview page
+- [ ] Truncated response detection — flag spans where output_tokens = max_tokens
+- [ ] Cost forecasting — project monthly spend from current trajectory
+- [ ] Rate limit visibility — surface 429s separately, show which models/endpoints are hitting limits
+- [ ] Simple evals — thumbs up/down on traces, alert when rolling score drops
+- [ ] Agent loop detection — alert when a single trace exceeds N spans
+
+**Later**
+- [ ] User tracking — attach user_id to traces, see cost/errors/latency per user
+- [ ] Session grouping — group multi-turn traces into a conversation thread
+- [ ] Anomaly explanation in plain English (LLM call on trace data)
 - [ ] LangChain integration
 - [ ] LlamaIndex integration
 - [ ] Vercel AI SDK integration
+- [ ] Dataset curation — save production traces to a test dataset with one click
 - [ ] Usage-based billing
 - [ ] Helicone migration guide
