@@ -68,12 +68,8 @@ export default function TracesPage() {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
     if (statusFilter) params.set('status', statusFilter)
     if (debouncedSearch) params.set('search', debouncedSearch)
-    if (dateFrom) params.set('date_from', new Date(dateFrom).toISOString())
-    if (dateTo) {
-      const end = new Date(dateTo)
-      end.setHours(23, 59, 59, 999)
-      params.set('date_to', end.toISOString())
-    }
+    if (dateFrom) params.set('date_from', new Date(dateFrom + 'T00:00:00').toISOString())
+    if (dateTo) params.set('date_to', new Date(dateTo + 'T23:59:59.999').toISOString())
     if (promptVersion) params.set('prompt_version', promptVersion)
     fetch(`/api/traces?${params}`).then((r) => r.json()).then((d) => {
       setTraces(d.traces ?? [])
