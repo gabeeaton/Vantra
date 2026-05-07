@@ -227,8 +227,8 @@ Every push to `main` auto-deploys via Vercel.
 - [x] Truncated response detection — flag spans where output_tokens >= max_tokens
 - [x] Cost forecasting — monthly projection from 7-day trailing average, shown in cost card
 - [x] Rate limit visibility — 429s surfaced in the error rate card
-- [ ] Simple evals — thumbs up/down on traces, alert when rolling score drops
-- [ ] Agent loop detection — alert when a single trace exceeds N spans
+- [x] Simple evals — thumbs up/down on trace detail, indicator in trace list, eval score alert type
+- [x] Agent loop detection — alert when a single trace exceeds N spans
 
 **Later**
 - [ ] User tracking — attach user_id to traces, see cost/errors/latency per user

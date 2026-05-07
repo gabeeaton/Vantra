@@ -11,6 +11,17 @@ export default function ChangelogPage() {
           <div className="border-l-2 border-[#4DE5FC]/30 pl-6 relative">
             <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-[#4DE5FC]" />
             <div className="text-xs text-zinc-500 mb-2">May 7, 2026</div>
+            <h2 className="text-white font-semibold text-base mb-3">Agent loop detection, simple evals, p95 latency, rate limit visibility, cost forecast</h2>
+            <ul className="space-y-1.5 text-zinc-400 text-sm">
+              <li>• Agent loop alert: fires when any single trace exceeds a span count threshold</li>
+              <li>• Eval score alert: fires when thumbs-up rate on recent traces drops below threshold</li>
+              <li>• Thumbs up/down rating on trace detail page — rating indicator shown in trace list</li>
+            </ul>
+          </div>
+
+          <div className="border-l-2 border-zinc-800 pl-6 relative">
+            <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-zinc-600" />
+            <div className="text-xs text-zinc-500 mb-2">May 7, 2026</div>
             <h2 className="text-white font-semibold text-base mb-3">Dashboard: p95 latency, rate limits, cost forecast, truncation detection</h2>
             <ul className="space-y-1.5 text-zinc-400 text-sm">
               <li>• Overview now shows p95 latency (with avg as secondary) instead of avg alone</li>
