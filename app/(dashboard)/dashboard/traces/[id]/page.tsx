@@ -32,6 +32,7 @@ interface Span {
   input: Record<string, unknown> | null
   output: Record<string, unknown> | null
   start_time: string
+  metadata?: Record<string, unknown> | null
 }
 
 export default function TracePage({ params }: { params: Promise<{ id: string }> }) {

@@ -1,6 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0
+  const idx = Math.ceil((p / 100) * sorted.length) - 1
+  return sorted[Math.max(0, idx)]
+}
+
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -17,7 +23,7 @@ export async function GET(req: NextRequest) {
   const orgId = userData.org_id
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
-  const [tracesResult, errorResult, costResult, avgLatencyResult] = await Promise.all([
+  const [tracesResult, errorResult, costResult, latencyResult, rateLimitResult] = await Promise.all([
     // Total traces last 24h
     supabase
       .from('traces')
@@ -40,17 +46,25 @@ export async function GET(req: NextRequest) {
       .eq('org_id', orgId)
       .gte('created_at', since24h),
 
-    // Avg latency last 24h
+    // Latency distribution last 24h
     supabase
       .from('traces')
       .select('duration_ms')
       .eq('org_id', orgId)
       .gte('created_at', since24h)
       .not('duration_ms', 'is', null),
+
+    // Rate-limited spans (429s) last 24h
+    supabase
+      .from('spans')
+      .select('id', { count: 'exact', head: true })
+      .eq('org_id', orgId)
+      .gte('start_time', since24h)
+      .ilike('error_message', '%429%'),
   ])
 
   const totalCost = costResult.data?.reduce((sum, t) => sum + (t.total_cost_usd || 0), 0) ?? 0
-  const durations = avgLatencyResult.data?.map((t) => t.duration_ms).filter(Boolean) ?? []
+  const durations = (latencyResult.data?.map((t) => t.duration_ms).filter(Boolean) as number[]).sort((a, b) => a - b)
   const avgLatency = durations.length > 0
     ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
     : 0
@@ -60,5 +74,8 @@ export async function GET(req: NextRequest) {
     errorsLast24h: errorResult.count ?? 0,
     totalCostToday: totalCost,
     avgLatencyMs: avgLatency,
+    p95LatencyMs: Math.round(percentile(durations, 95)),
+    p99LatencyMs: Math.round(percentile(durations, 99)),
+    rateLimitCount: rateLimitResult.count ?? 0,
   })
 }

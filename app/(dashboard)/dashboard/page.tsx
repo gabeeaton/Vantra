@@ -10,6 +10,9 @@ interface Stats {
   errorsLast24h: number
   totalCostToday: number
   avgLatencyMs: number
+  p95LatencyMs: number
+  p99LatencyMs: number
+  rateLimitCount: number
 }
 
 interface Trace {
@@ -60,6 +63,10 @@ export default function DashboardPage() {
     ? ((stats.errorsLast24h / stats.tracesToday) * 100).toFixed(1)
     : '0'
 
+  // Cost forecast: 7-day average daily cost × 30
+  const totalCost7d = chart.reduce((sum, d) => sum + d.cost, 0)
+  const projectedMonthly = chart.length > 0 ? (totalCost7d / chart.length) * 30 : null
+
   const hasData = !loading && traces.length > 0
   const [showFirstTrace, setShowFirstTrace] = useState(false)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -106,9 +113,30 @@ export default function DashboardPage() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Traces (24h)" value={stats?.tracesToday ?? null} format={(v) => v.toLocaleString()} accent="#4DE5FC" delay={0} />
-        <StatCard label="Error rate" value={stats ? parseFloat(errorRate) : null} format={(v) => `${v}%`} accent={parseFloat(errorRate) > 5 ? '#ef4444' : '#22c55e'} sub={stats ? `${stats.errorsLast24h} errors` : undefined} delay={60} />
-        <StatCard label="Avg latency" value={stats?.avgLatencyMs ?? null} format={(v) => `${v.toLocaleString()}ms`} accent="#a78bfa" delay={120} />
-        <StatCard label="Cost (24h)" value={stats?.totalCostToday ?? null} format={(v) => `$${v.toFixed(4)}`} accent="#fb923c" delay={180} />
+        <StatCard
+          label="Error rate"
+          value={stats ? parseFloat(errorRate) : null}
+          format={(v) => `${v}%`}
+          accent={parseFloat(errorRate) > 5 ? '#ef4444' : '#22c55e'}
+          sub={stats ? `${stats.errorsLast24h} errors${stats.rateLimitCount > 0 ? ` · ${stats.rateLimitCount} rate limited` : ''}` : undefined}
+          delay={60}
+        />
+        <StatCard
+          label="p95 latency"
+          value={stats?.p95LatencyMs ?? null}
+          format={(v) => `${v.toLocaleString()}ms`}
+          accent="#a78bfa"
+          sub={stats?.avgLatencyMs != null ? `avg ${stats.avgLatencyMs.toLocaleString()}ms` : undefined}
+          delay={120}
+        />
+        <StatCard
+          label="Cost (24h)"
+          value={stats?.totalCostToday ?? null}
+          format={(v) => `$${v.toFixed(4)}`}
+          accent="#fb923c"
+          sub={projectedMonthly != null ? `~$${projectedMonthly.toFixed(2)}/mo projected` : undefined}
+          delay={180}
+        />
       </div>
 
       {/* 7-day chart */}

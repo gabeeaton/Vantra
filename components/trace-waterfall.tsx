@@ -20,6 +20,7 @@ interface Span {
   input: Record<string, unknown> | null
   output: Record<string, unknown> | null
   start_time: string
+  metadata?: Record<string, unknown> | null
 }
 
 interface Trace {
@@ -78,6 +79,8 @@ function SpanRow({
     : 1
 
   const isSlowLlm = span.kind === 'llm' && span.duration_ms && span.duration_ms > 3000
+  const maxTokens = span.metadata?.max_tokens != null ? Number(span.metadata.max_tokens) : null
+  const isTruncated = span.kind === 'llm' && span.output_tokens != null && maxTokens != null && span.output_tokens >= maxTokens
 
   const isError = span.status === 'error'
 
@@ -94,6 +97,7 @@ function SpanRow({
             <span className={`text-sm font-mono ${isError ? 'text-red-300' : 'text-zinc-200'}`}>{span.name}</span>
             {isError && <span className="text-red-400 text-xs font-medium">error</span>}
             {!isError && isSlowLlm && <span className="text-yellow-500 text-xs">⚠ slow</span>}
+            {isTruncated && <span className="text-orange-400 text-xs">⚠ truncated</span>}
           </div>
         </td>
 
