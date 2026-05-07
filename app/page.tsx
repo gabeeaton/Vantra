@@ -189,32 +189,85 @@ export default function LandingPage() {
                 <td className="py-3 pr-6 font-bold text-[#4DE5FC]">Vantra</td>
                 <td className="py-3 px-4 text-green-400">3 lines</td>
                 <td className="py-3 px-4 text-green-400">Free → $9/mo</td>
-                <td className="py-3 px-4 text-green-400">Anomaly detection built-in</td>
+                <td className="py-3 px-4 text-green-400">Anomaly detection, email + Slack</td>
                 <td className="py-3 px-4 text-green-400">Any</td>
               </tr>
               <tr>
                 <td className="py-3 pr-6 text-zinc-300">LangSmith</td>
                 <td className="py-3 px-4 text-zinc-500">Medium</td>
                 <td className="py-3 px-4 text-zinc-500">$39/seat/mo</td>
-                <td className="py-3 px-4 text-zinc-500">Limited</td>
+                <td className="py-3 px-4 text-zinc-500">Threshold alerts + anomaly detection</td>
                 <td className="py-3 px-4 text-zinc-500">LangChain-optimized</td>
               </tr>
               <tr>
                 <td className="py-3 pr-6 text-zinc-300">Langfuse</td>
                 <td className="py-3 px-4 text-zinc-500">Medium</td>
-                <td className="py-3 px-4 text-zinc-500">$29/mo (100K units, 30-day retention)</td>
-                <td className="py-3 px-4 text-zinc-500">Basic</td>
+                <td className="py-3 px-4 text-zinc-500">$29/mo (100K units, 90-day retention)</td>
+                <td className="py-3 px-4 text-zinc-500">Threshold-based, no anomaly detection</td>
                 <td className="py-3 px-4 text-zinc-500">Any</td>
+              </tr>
+              <tr>
+                <td className="py-3 pr-6 text-zinc-300">Helicone</td>
+                <td className="py-3 px-4 text-zinc-500">1 line (proxy)</td>
+                <td className="py-3 px-4 text-zinc-500">Free → $79/mo</td>
+                <td className="py-3 px-4 text-zinc-500">Threshold alerts via evaluators</td>
+                <td className="py-3 px-4 text-zinc-500">Any (proxy-based)</td>
               </tr>
               <tr>
                 <td className="py-3 pr-6 text-zinc-300">Datadog LLM</td>
                 <td className="py-3 px-4 text-zinc-500">Complex</td>
                 <td className="py-3 px-4 text-red-400">$3K+/mo</td>
-                <td className="py-3 px-4 text-green-400">Yes</td>
+                <td className="py-3 px-4 text-green-400">Full alerting</td>
                 <td className="py-3 px-4 text-zinc-500">Any</td>
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <p className="text-xs text-zinc-600 mt-4">
+          † Helicone routes all requests through their proxy — if it goes down, your LLM calls fail. Vantra has no proxy.
+        </p>
+
+        {/* Free tier comparison */}
+        <div className="mt-16">
+          <h3 className="text-xl font-bold text-white mb-2">Free tier comparison</h3>
+          <p className="text-zinc-500 text-sm mb-6">Most teams start free. Here's what you actually get.</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/10">
+                  <th className="text-left py-3 pr-6 text-zinc-500 font-medium"></th>
+                  <th className="text-left py-3 px-4 text-[#4DE5FC] font-semibold">Vantra</th>
+                  <th className="text-left py-3 px-4 text-zinc-500 font-medium">LangSmith</th>
+                  <th className="text-left py-3 px-4 text-zinc-500 font-medium">Langfuse</th>
+                  <th className="text-left py-3 px-4 text-zinc-500 font-medium">Helicone</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                <tr>
+                  <td className="py-3 pr-6 text-zinc-400">Free spans / requests</td>
+                  <td className="py-3 px-4 text-green-400 font-medium">50K spans</td>
+                  <td className="py-3 px-4 text-zinc-500">5K traces</td>
+                  <td className="py-3 px-4 text-green-400">50K units</td>
+                  <td className="py-3 px-4 text-zinc-500">10K requests</td>
+                </tr>
+                <tr>
+                  <td className="py-3 pr-6 text-zinc-400">Retention</td>
+                  <td className="py-3 px-4 text-green-400 font-medium">30 days</td>
+                  <td className="py-3 px-4 text-zinc-500">14 days</td>
+                  <td className="py-3 px-4 text-green-400">30 days</td>
+                  <td className="py-3 px-4 text-red-400">7 days</td>
+                </tr>
+                <tr>
+                  <td className="py-3 pr-6 text-zinc-400">Seats</td>
+                  <td className="py-3 px-4 text-green-400 font-medium">Unlimited</td>
+                  <td className="py-3 px-4 text-zinc-500">1</td>
+                  <td className="py-3 px-4 text-green-400">Unlimited</td>
+                  <td className="py-3 px-4 text-zinc-500">1</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
         </ScrollReveal>
       </section>
